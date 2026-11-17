@@ -16,6 +16,168 @@
 
 ---
 
+## [0.1.13] レビュー監査修正（ESLint境界・キルスイッチ迂回12パターンの完全封鎖・`store_total` 残数誤設定遮断・StrictMode/GA4保護強化） - 2026-11-17
+
+### メタ情報
+
+- **AIモデル**: Antigravity (Gemini)
+- **筆者**: AI
+- **変更理由**: `[0.1.12]` の実装に対して敵対的レビューを実施した結果、① `eslint.config.mjs` におけるルートグループ相対パス（`./(mop)/...`, `../(venue)/...`, `../../../mop/...` 等）・動的 `import()`・`publicEnv.NEXT_PUBLIC_MOP_ENABLED` / `process.env.NEXT_PUBLIC_MOP_ENABLED` 経由の境界およびキルスイッチ迂回（計12パターン）、② `stockControlMode: 'store_total'` 店舗の商品に `initialStockCount` を誤付与した際の無警告通過および単一企画内メニュー商品ID重複の未検査、③ `PortalSmokeStatus` における React 19 `StrictMode` 二重実行時の消去済ハッシュ表示クリア、④ スタッフ・店舗シェル（`/venue`, `/order`, `/mop/*`）の `noindex` 未設定および誤混入クエリ機密値の GA4 送信リスクを検出したため、すべて根治・再検証する。
+
+### 修正 (Fixed)
+
+- **`eslint.config.mjs`（境界・キルスイッチ迂回12パターンの完全封鎖）**:
+  - 相対ホップ数固定グロブ（`../mop/**`, `../../mop/**`）や `app/` 前置前提グロブ（`**/app/(mop)/**`）を廃止し、セグメント境界正規表現（`(^|/)(\\(mop\\)|mop)(/|$)` / `(^|/)(\\(venue\\)|venue)(/|$)`）へ刷新。`src/app/layout.tsx` や `src/app/(portal)/page.tsx` からの隣接ルートグループ相対参照、3階層以上の深い相対参照、`src/types/**` での重複設定上書きによる抜け穴をすべて遮断。
+  - `venue` 層に `no-restricted-properties`（`NEXT_PUBLIC_MOP_ENABLED` および `isMopBuildEnabled`）を追加し、既に許可されている `publicEnv` 経由のプロパティ参照・分割代入および `process.env.NEXT_PUBLIC_MOP_ENABLED` 直接参照を AST レベルで完全封鎖。
+  - `BASE_XSS_RESTRICTED_SYNTAX` を共通定数として全レイヤーへスプレッド継承しつつ、`ImportExpression`（動的 `import()`）および Functions での `require('googleapis')` による境界バイパスを遮断。
+- **`src/types/schemas.ts`（`ProjectMasterSchema` の残数モード対称検証＆単一企画内商品ID一意性保証）**:
+  - `stockControlMode: 'store_total'` の店舗でメニュー商品に `initialStockCount` が誤指定された場合、`stockControlMode="both"` への切り替えを案内する明示エラーで拒否するよう修正（商品上限が実行時に無視されて売り越す設定ミスを防止）。
+  - `ProjectMasterSchema` 単体でも同一企画内の重複メニュー `item.id` を拒否するよう強化（Cloud Functions ランタイム単体検証時の整合性保証）。
+- **`src/domains/portal/components/PortalSmokeStatus.tsx` & `src/lib/analytics.ts` & `(venue)`/`(mop)` Layout**:
+  - `PortalSmokeStatus.tsx`: React 19 `StrictMode`（`next dev`）の `useEffect` 二重実行時に、1回目で消去した `#` ハッシュ表示が2回目の実行（ハッシュなし）で `null` に上書き消去される不具合を修正（`stripRes.didStrip` ガード追加）。
+  - `src/lib/analytics.ts`: `buildPageViewPayload()` にて、`?src=` / `?store=` / `?venue=` 等の正規クエリを完全保持しつつ、万一誤って URL クエリに付与された機密キー（`token`, `password`, `pw`, `secret`, `passcode`, `auth`, `key`）を GA4 送信前に自動除去するデータ衛生防御を追加（`D-006.5` 準拠）。
+  - `src/app/(venue)/layout.tsx` & `src/app/(mop)/layout.tsx`: 内部運用シェルに `robots: { index: false, follow: false }` メタデータを付与。
+- **`tests/*.test.ts`（回帰テストの網羅追加）**:
+  - 上記すべての ESLint 迂回パターン・`store_total` 誤設定・企画内商品ID重複・GA4 機密クエリ除去・`venue` 全ファイル検査を自動テストに追加。
+
+### 得られた知見 / 注意点 (Learned / Caveats)
+
+- **`no-restricted-imports` における App Router ルートグループ括弧パスと動的 `import()` の盲点**:
+  - `src/app/` 内部からの相対 import は `'../(mop)/order/page'` のように `'app/'` セグメントを含まず、また ESLint の `no-restricted-imports` は静的 `ImportDeclaration` のみを対象とし動的 `ImportExpression`（`import(...)`）を検査しない。セグメント境界 `regex` と `BASE_XSS_RESTRICTED_SYNTAX` を継承した `ImportExpression` AST セレクタ、および環境変数オブジェクト経由の迂回を防ぐ `no-restricted-properties` の3点セットで初めてコンパイル境界が完全閉鎖される。
+
+---
+
+## [0.1.12] SSOT完全整合性修正（残数併用モード `both`・会場管理 `/venue` 分離＆キルスイッチ非連動化・CSP国土地理院タイル許可） - 2026-11-17
+
+### メタ情報
+
+- **AIモデル**: Antigravity (Gemini)
+- **筆者**: AI
+- **変更理由**: `DECISIONS.md`（`D-004` / `D-007` / `D-009.1`）・`docs/ROADMAP.md`（`2-3`）・`docs/PHASE1_PLAN.md` との全件再突合により検出された3点（① `stockControlMode: 'both'` 未定義、② 会場管理画面の `/mop/venue` 誤配置および MOP キルスイッチへの誤連動、③ `firebase.json` の CSP `img-src` における国土地理院タイルオリジン漏れ）を解消し、SSOT との 100% 一致を確立するため。
+
+### 修正・変更 (Fixed / Changed)
+
+- **`src/types/domain.ts` & `src/types/schemas.ts`（`stockControlMode: 'both'` 対応: `D-007`）**:
+  - `StoreStockPolicy` および `StoreMopConfigSchema`（`z.discriminatedUnion('stockControlMode', ...)`）に `stockControlMode: 'both'`（店舗合計 `initialTotalStock` と商品別 `initialStockCount` の併用モード）を追加。
+  - `ProjectMasterSchema` の `superRefine` にて、`stockControlMode` が `'per_item'` または `'both'` の店舗では全メニュー商品に `initialStockCount`（`0..10000` 整数）を必須化し、欠落時は該当インデックスとモード名を明示した Zod エラーを返すよう強化。
+- **`src/app/(venue)/venue/page.tsx` & `src/domains/venue/**` & `eslint.config.mjs`（会場管理 `/venue` 独立化＆MOPキルスイッチ分離: `D-004` / `D-009.1` / `ROADMAP 2-3`）**:
+  - 旧 `src/app/(mop)/mop/venue/page.tsx` を廃止し、専用ルートグループ `src/app/(venue)/`（URL `/venue`）および `src/domains/venue/`（`VenueShellCard.tsx`, `firebase-venue.ts`）へ分離新設。
+  - `NEXT_PUBLIC_MOP_ENABLED=false`（MOPキルスイッチ停止時）でも `/venue` は第1層ステージ会場ライブ運用シェルとして単独稼働する表示へ分離し、`?venue=`（`gym_stage` / `admin_3f_av_room` / `student_4f_music_room` 判定付き）・`?src=` 保護・`stripLocationHashOnly()` による `#` フラグメント即時消去を実装。
+  - `eslint.config.mjs`: 来場者向け `(portal)` および共有層からの `venue` 層 import を遮断して `firebase/auth`・`firebase/functions` のポータルバンドル混入ゼロを維持しつつ、`venue` 層からの `mop` 層および `isMopBuildEnabled` への依存（および `mop` 層から `venue` 層への逆依存）を双方向でビルドエラー化。
+- **`firebase.json` & `docs/PHASE1_PLAN.md`（CSP `img-src` 国土地理院タイル追加）**:
+  - `firebase.json` の `Content-Security-Policy` 内 `img-src` に `https://cyberjapandata.gsi.go.jp` を追加（Phase 2-2 の Leaflet キャンパスマップ背景タイル表示用）。あわせて `docs/PHASE1_PLAN.md` の構成図・ルート記述・CSP記述を同期。
+- **`tests/*.test.ts`（自動テスト 37件 → 41件へ拡充）**:
+  - `stockControlMode: 'both'` の正常系・境界値（`0`）・異常系（`initialTotalStock` 欠落・範囲外・一部商品の `initialStockCount` 欠落）、`venue` 境界ルール＆XSSルール非上書き検証、`firebase.json` CSP パース検証、および Hosting/Functions Emulator＋Headless Chrome 実機での国土地理院タイル CSP 通過・未許可オリジン遮断・`/venue` 稼働＆旧 `/mop/venue` `404` を確認。
+
+### 得られた知見 / 注意点 (Learned / Caveats)
+
+- **機能境界（MOPキルスイッチ）とバンドル境界（来場者ログインレス）の直交分離**:
+  - 会場管理画面（`/venue`）は「業務機能としては第1層（ステージ会場ステータス運用・MOP停止時も稼働）」でありながら「SDK要件としてはスタッフ認証（`firebase/auth` + `firebase/functions`）を使う」という交差特性を持つため、`(portal)` でも `(mop)` でもない第3のルートグループ `(venue)` / `src/domains/venue` として切り出し ESLint で三者間境界を縛ることで、「来場者バンドルへの Auth/Functions 混入ゼロ」と「MOPキルスイッチからの完全独立」を矛盾なく両立できる。
+- **ESLint Flat Config で特定ディレクトリ向けルールを追加する際の `no-restricted-syntax` 上書き防止**:
+  - Flat Config では後続オブジェクトで同一ルール名（例: `no-restricted-syntax`）を再定義すると先行の全体ルール（`dangerouslySetInnerHTML` / `innerHTML` 禁止）が上書き消滅するため、`venue` 層の `isMopBuildEnabled` 遮断は `no-restricted-imports` の `paths` / `patterns`（`importNames` 指定）側に集約し、XSS 禁止ルールが `venue` 配下でも維持されていることを単体テストで保証した。
+
+---
+
+## [0.1.11] Phase 1 実装レッドチーム再監査・実データ＆実機エッジケース修正 - 2026-11-17
+
+### メタ情報
+
+- **AIモデル**: Antigravity (Gemini)
+- **筆者**: AI
+- **変更理由**: `[0.1.10]` で構築した Phase 1 基盤一式に対し、2026年実画像（506枚＋実機 iPhone `.HEIC` 3枚）・エミュレータ実通信・境界迂回パターンを用いた敵対的検証を実施した結果、末尾 `_1〜_9` 企画IDの画像誤分類・高周波イラストの圧縮失敗・二重スラッシュ URL でのトークン残留・共有層経由の ESLint 境界バイパス等を検出したため、すべて根治・再検証する。
+
+### 修正 (Fixed)
+
+- **`scripts/process-assets.ts` & `scripts/validate-data.ts`（画像パイプラインの致命的バグ2件を修正）**:
+  - 企画ID末尾が `_[1-9]`（例: `class_1_1`, `homeroom_3_6`）のカバー画像（`class_1_1.jpg`）が `GALLERY_FILENAME_REGEX` に先取りされて非存在企画 `class_1` のギャラリー画像と誤認され、`_thumb.webp` / `_hero.webp` が欠損する不具合を修正（`data/projects.json` の既知ID照合および同梱ファイル関係を優先判定し、`validate-data.ts` に `[企画ID衝突エラー]` 検査を追加）。
+  - 2026年イラストレーション部実作品（高周波線画 `2-1.jpg`, `2-6.jpg`）や縦長ポスター画像において、幅のみ指定の固定リサイズでは `q=25` まで落としても `45KB` / `90KB` 上限を超過して例外終了する不具合を修正。`fit: 'inside'` による長辺（幅・高さ双方）拘束と段階的スケール縮小フォールバックを導入し、2026年実線画および実機 iPhone `.HEIC` 3件すべてが規定バイト上限内に高品質収束することを実機確認。
+- **`src/lib/url-safety.ts`（`stripLocationHashOnly` のプロトコル相対パス防御 & SNS正規化強化）**:
+  - `computeHashStrippedUrl()` で `//order?...#t=...` のような先頭連続スラッシュパスが入力された際、そのまま `history.replaceState` に渡すとプロトコル相対クロスオリジン URL と解釈され `SecurityError` を投げる問題を修正（単一 `/` 正規化＋特殊 WebView 等で `replaceState` が例外を投げた際の `location.hash = ''` フォールバックを追加）。
+  - `normalizeInstagramHandle()` でスキーム省略 URL（`instagram.com/handle`）や `m.instagram.com` に対応しつつ、ドメイン単体（`instagram.com`）の誤通過を遮断。
+- **`src/types/schemas.ts`（Zod スキーマ厳格化とランタイム判定との完全一致）**:
+  - `ProjectMasterSchema` の `instagramHandle` に `isValidNormalizedInstagramHandle()` を適用し、`...` や先頭/末尾ピリオド・ドメイン単体をビルド時 `validate:data` で確実に弾くよう統一。
+  - `MenuOptionGroupSchema` / `MenuItemMasterSchema` での重複ID・`single` 選択時の不正 `maxSelections` 拒否、`PublicLiveStateDocSchema` での辞書キーと内部 `venueId` / `storeId` の一致検証を追加。
+- **`src/lib/analytics.ts` & `src/components/AnalyticsTracker.tsx`（GA4 初期化競合リスクの排除）**:
+  - インライン `<Script id="ga4-gtag-init">` の非同期注入順序に依存せず、`analytics.ts` 側で同期的に `window.dataLayer`（`Arguments` オブジェクト push）と初回 `config`（`send_page_view: false`）を一度だけ初期化する構造へ改め、初回 `?src=` 付き `page_view` の取りこぼしリスクと余分なインラインスクリプトを解消。
+- **`eslint.config.mjs` & `.env.example`（二層境界の間接バイパス封鎖と環境変数優先順位の保護）**:
+  - `no-restricted-imports` の適用対象を `src/app/*.{ts,tsx}`, `src/components/**`, `src/lib/**`, `src/types/**` にも拡大し、共有ユーティリティや `RootLayout` を踏み台にした `mop` / `firebase/auth` / `firebase/functions` の第1層バンドル混入を完全遮断（`src/types/**` はランタイム SDK 依存自体も禁止）。
+  - Next.js が `next build` 時にも `.env.local` を `.env.production` より優先読込する仕様を踏まえ、`.env.local` をエミュレータ切替フラグのみに限定し `.env.example` に `.env.development.local` 使い分け注記を追記。
+- **`tests/*.test.ts`（単体・境界テスト拡充）**:
+  - 29件 → 37件へ拡充し、上記すべての回帰テストおよび `next dev -p 3070` ＋ Firestore Emulator（`127.0.0.1:8080`）実通信での `permission-denied` 捕捉＆`localStorage` キャッシュ維持を確認。
+
+### 得られた知見 / 注意点 (Learned / Caveats)
+
+- **高周波イラスト画像の WebP 容量上限収束には品質低下だけでなく段階的長辺縮小が必須**:
+  - 写真（実機 iPhone `.HEIC` 含む）は `800px / q=80` で容易に `40〜80KB` に収まる一方、細密な線画・トーンを含むイラストは `800px` 固定のまま `q=25` まで下げても `100KB` を超え画質も崩壊するため、`q >= 42` を維持しながら長辺を `0.85 -> 0.72` 倍へ段階縮小する方が視覚品質と転送量上限（`<= 90KB`）を綺麗に両立できる。
+- **Hosting Emulator（`localhost:5000`）と `next dev`（`localhost:3070`）の検証役割分担**:
+  - 本番同一 CSP（`localhost` 非許可）を配信する Hosting Emulator（`5000`）では静的書き出し・CSP違反ゼロ・Functions Rewrite（`/api/health`）を検証し、クライアント SDK から Firestore/Auth Emulator（`127.0.0.1:8080` / `9099`）へ直接繋ぐ検証は `next dev`（`3070`, `NODE_ENV=development`）で行う二段構えが最も安全かつ確実である。
+
+---
+
+## [0.1.10] Phase 1 基盤一式の実装完了（Next.js静的書き出し・二層分離ESLint・SSOT型＆マップ全51室正規化・データ検証/画像圧縮CLI・Functions 2nd Gen＆Emulator E2E検証） - 2026-11-17
+
+### メタ情報
+
+- **AIモデル**: Antigravity (Gemini)
+- **筆者**: AI
+- **変更理由**: `docs/PHASE1_PLAN.md`（Step 1-1〜1-4）および `DECISIONS.md`（`D-001`〜`D-009`）に基づき、第1層（公式Webポータル）と第2層（MOP・有人POS・会場管理）をコンパイルレベルで完全分離した開発基盤・マスターデータ自動化CLI・Cloud Functions 2nd Gen 基盤を構築し、Firebase Local Emulator Suite 実機で全完了定義（DoD 7項目）を達成するため。
+
+### 追加 (Added)
+
+- **Next.js App Router（Static Export）＆ 二層境界強制基盤（Step 1-1）**:
+  - `package.json`, `next.config.ts`（`output: 'export'`, `trailingSlash: false`, `images: { unoptimized: true }`, `dev -p 3070`）, `tsconfig.json`（`strict: true`, `noUncheckedIndexedAccess: true`）, `vitest.config.ts`, `eslint.config.mjs`, `.env.production`, `.env.example` を作成。
+  - `eslint.config.mjs`: `src/domains/portal/**` および `src/app/(portal)/**` からの `@/domains/mop` / `firebase/auth` / `firebase/functions` / 通常版 `firebase/firestore` の import、および `dangerouslySetInnerHTML` / `innerHTML` / Functions での `googleapis` 読込をビルドエラーとして完全遮断。
+  - `src/styles/tokens.css`: `P-001` 着せ替え用の CSS カスタムプロパティ（Tier 1〜3）と `@layer reset, base, theme, components, utilities` によるカスケード設計を1ファイルに集約。
+  - `src/lib/env.ts`, `src/lib/url-safety.ts`（`stripLocationHashOnly`, `safeExternalUrl`, `normalizeInstagramHandle`）, `src/lib/analytics.ts`, `src/components/AnalyticsTracker.tsx`（`G-VTX813ECF9`・`<Suspense>` 分離済）, `src/lib/firebase-lite.ts`, `PortalLink.tsx`（`prefetch={false}`）, `useLiveState.ts`, `firebase-mop.ts`, `(portal)` / `(mop)` 単一静的シェル群（`/order`, `/mop/qr`, `/mop/kitchen`, `/mop/counter`, `/mop/monitor`, `/mop/venue`）を実装。
+- **SSOT ドメイン型・Zodスキーマ ＆ 2026年キャンパスマップ完全正規化移植（Step 1-2）**:
+  - `src/types/domain.ts`, `src/types/schemas.ts`: `CampusMapData`, `ProjectMaster`, `StoreMopConfig`（`kitchenMode: 'on' | 'off'`, `store_total | per_item` Discriminated Union, `1000-9999` / `100-999` 採番レンジ）, `StageSlotMaster`（有志・後夜祭 `after_festival` 対応）, `PublicLiveStateDoc` を定義。
+  - `scripts/migrate-map-2026.ts`, `data/campus_map_data.json`: 2026年実マップから全51室（1Fの3-6/3-7、管理棟3F視聴覚室、4Fの1-7→1-6逆順を含む）・11スポット・9建物・4屋外エリア・4バスアクセス経路・廊下/階段/トイレを明示的1対1辞書＋件数一致アサートで正規化し、冗長な `coordinates` 二重配列と年度依存クラス名を除去。
+  - `data/projects.json`, `data/stages.json`: 全カテゴリ・MOP両モード・共同教室・マップ非表示・後夜祭・有志枠を網羅した Phase 1 検証用マスタを作成。
+- **データ突合検証 CLI・WebP画像最適化 CLI・Vitest単体テスト（Step 1-3）**:
+  - `scripts/validate-data.ts`（`npm run validate:data`）: Zod 検証、指定フロア内の `roomId` 実在突合、意図しない部屋重複の遮断、ステージ参照＆時間重複検査、参照 WebP 画像の実在および容量上限（`<=45KB` / `<=90KB`）検査を実装。
+  - `scripts/process-assets.ts`（`npm run process-assets`）: `sharp` + `heic-convert` による Exif 回転補正＋カバー2段階・ギャラリー・商品画像の WebP 出力と段階品質制御を実装し、`public/images/**` にサンプル WebP 8点を生成。
+  - `tests/*.test.ts`（5ファイル・29テスト）: `?src=` 保護、XSS URL遮断、SNSハンドル正規化、7教室ズレ検知、画像リサイズ、ESLint二層境界遮断の自動テストを整備。
+- **Cloud Functions 2nd Gen（`nodejs22` + `esbuild`）＆ Emulator E2E 検証（Step 1-4）**:
+  - `functions/package.json`, `functions/tsconfig.json`, `functions/src/index.ts`: `asia-northeast1` / `concurrency: 80` の `healthCheck` 関数を実装し、`esbuild --external:firebase-admin --external:firebase-functions` によりルートの共有 Zod スキーマをインライン同梱。
+
+### 変更 (Changed)
+
+- `firebase.json`: `functions`（`nodejs22`）、`trailingSlash: false`、`/api/health` リライト、静的アセット長期キャッシュ（`immutable`）、および本番用 `Content-Security-Policy` ヘッダを追加（`firestore.rules` は完全フェイルクローズドのまま無変更を維持）。
+- `.gitignore`: `!.env.production`, `assets/original/*`（`!.gitkeep`）, `functions/lib/`, `functions/node_modules/` 等を追記。
+- `docs/ROADMAP.md`: Phase 1 の完了チェックリストを更新。
+
+### 得られた知見 / 注意点 (Learned / Caveats)
+
+- **Windows 環境の Firebase Hosting Emulator（`superstatic`）における `source` グロブの罠と RE2 正規表現による解決**:
+  - 実機エミュレータ検証中、Windows 上の `firebase-tools` 内蔵 `superstatic` がリクエストパスを `glob-slasher`（`\` 区切り）へ変換した後に `minimatch@9`（`\` をエスケープ文字扱い）へ渡すため、`"source": "**"` や `"source": "/_next/static/**"` のヘッダ設定が Windows ローカルエミュレータ上で一切マッチせず素通りする挙動を特定した。
+  - `firebase.json` の `headers` / `rewrites` に Firebase Hosting 公式サポートの RE2 互換 `"regex"`（`"^[/\\\\].*$"` 等）を用いることで、Windows ローカルエミュレータと本番 Google CDN（POSIX `/`）の双方で CSP・`immutable` キャッシュ・`/api/health` リライトが100%同一に適用されることをヘッドレス Chrome 実通信で確認した。
+- **Next.js App Router における `history.replaceState` の `history.state` 保護**:
+  - `stripLocationHashOnly()` で `window.history.replaceState(null, ...)` を呼ぶと Next.js App Router の内部履歴 state が破壊されるため、`window.history.state` を第1引数に引き継ぐ実装とした。
+
+---
+
+## [0.1.9] Phase 1 実装計画書の策定とレッドチーム再精査（実機CLI・全51室/47企画/24ステージ突合） - 2026-11-17
+
+### メタ情報
+
+- **AIモデル**: Antigravity (Gemini)
+- **筆者**: AI & 山本洋昌 (Uokun)
+- **変更理由**: Phase 1（Next.js基盤・二層分離・`domain.ts`・マップ座標正規化・データ検証＆画像圧縮・Functions 2nd Gen基盤）を着手後に一切手戻りさせないため、2026年実データ全件およびローカルCLI内部仕様まで踏み込んで計画を精査・確定するため。
+
+### 追加 (Added)
+
+- `docs/PHASE1_PLAN.md`: Step 1-1〜1-4 の完了定義・ディレクトリ構成・再精査で特定した8つの技術的落とし穴と対策を網羅した詳細実装計画書（v2）を作成。
+
+### 得られた知見 / 注意点 (Learned / Caveats)
+
+- **`firebase-tools 14.25.0` のサポートランタイム上限の実機確認**:
+  - `firebase-tools/lib/deploy/functions/runtimes/supported.js` を直接検証した結果、現行 CLI が許容する最新 Node ランタイムは `nodejs22` までであり、`nodejs24` を指定すると即座に `FirebaseError` となることを確認。`nodejs22` + `esbuild --external:firebase-admin --external:firebase-functions` 構成（共有 Zod スキーマのみバンドル同梱）を採用する。
+- **南陵高校の実フロア構造（全51室＋11スポット）と2026年47企画・24ステージの精査**:
+  - `campus_map_data.json` 全件確認により、生徒棟1Fに `3年6組`・`3年7組` があること、管理棟3Fに `視聴覚室` があること、生徒棟4Fでは特別教室を挟んで `1年7組` → `1年6組` の逆順になっていること、屋外スポットIDに年度クラス番号（`tent_102` 等）が直書きされていたことを特定。連番推測を廃し明示的1対1辞書＋件数一致アサートで移植する方針とした。
+  - あわせて `(mop)` ルートを動的 `[storeId]` ではなく単一静的シェル＋`?store=` 方式に統一することで、Static Export での動的店舗追加時 404 回避と朝8:30の PWA オフライン一括キャッシュを両立させた。
+
+---
+
 ## [0.1.8] 本番までの全体マスターロードマップ（やることリスト）策定 - 2026-11-17
 
 ### メタ情報

@@ -1,0 +1,234 @@
+[
+  {
+    "id": "sample_mop_castella",
+    "groupName": "【検証用】模擬店サンプルA（調理非干渉モード）",
+    "name": "ひとくちカステラ（Phase 1 検証データ）",
+    "catchphrase": "焼きたてふわふわ！店頭QRまたは口頭POSで受付",
+    "description": "Phase 1 パイプライン検証用データ（2026年構造ベース）。調理KVS OFF（kitchenMode: off）・店舗合計残数カウンター方式の検証用店舗です。",
+    "category": "cooking",
+    "votingCategory": "cooking",
+    "placeLabel": "中庭 テント2",
+    "floor": 1,
+    "roomId": "courtyard_tent_2",
+    "instagramHandle": "nanryo_sample_301",
+    "tags": ["調理", "スイーツ", "外テント"],
+    "hasCoverImage": true,
+    "galleryCount": 2,
+    "menuNote": "アレルギー成分：卵・小麦・乳成分・はちみつ",
+    "menu": [
+      {
+        "id": "castella_plain",
+        "name": "ひとくちカステラ（6個入り）",
+        "priceYen": 100,
+        "description": "定番プレーン味。お好みでトッピングを選択できます。",
+        "allergens": ["卵", "小麦", "乳"],
+        "hasImage": true,
+        "isRecommended": true,
+        "optionGroups": [
+          {
+            "id": "topping_sauce",
+            "label": "ソース選択",
+            "selectionType": "single",
+            "required": true,
+            "choices": [
+              { "id": "sauce_none", "label": "プレーン（なし）", "priceDeltaYen": 0 },
+              { "id": "sauce_choco", "label": "チョコソース", "priceDeltaYen": 0 },
+              { "id": "sauce_maple", "label": "メープル風シロップ", "priceDeltaYen": 20 }
+            ]
+          }
+        ]
+      }
+    ],
+    "mopConfig": {
+      "storeId": "sample_mop_castella",
+      "enabled": true,
+      "kitchenMode": "off",
+      "stockControlMode": "store_total",
+      "initialTotalStock": 400,
+      "maxQuantityPerOrder": 5,
+      "mopNumberRange": { "min": 1000, "max": 9999 },
+      "posNumberRange": { "min": 100, "max": 999 }
+    }
+  },
+  {
+    "id": "sample_mop_teppan",
+    "groupName": "【検証用】模擬店サンプルB（調理KVSあり）",
+    "name": "鉄板ペッパーライス（Phase 1 検証データ）",
+    "catchphrase": "熱々ジューシー！調理KVSバンプ連携検証用",
+    "description": "Phase 1 パイプライン検証用データ。調理KVS ON（kitchenMode: on）・商品別残数カウンター＆複数オプションの検証用店舗です。",
+    "category": "cooking",
+    "votingCategory": "cooking",
+    "placeLabel": "昇降口前 テント2",
+    "floor": 1,
+    "roomId": "entrance_tent_2",
+    "tags": ["調理", "ガッツリ", "外テント"],
+    "hasCoverImage": false,
+    "galleryCount": 0,
+    "menuNote": "アレルギー成分：牛肉・大豆・小麦・乳成分",
+    "menu": [
+      {
+        "id": "pepper_regular",
+        "name": "特製ペッパーライス",
+        "priceYen": 350,
+        "description": "ブラックペッパーとバターが香る鉄板ライス",
+        "allergens": ["牛肉", "小麦", "乳", "大豆"],
+        "isRecommended": true,
+        "initialStockCount": 250,
+        "optionGroups": [
+          {
+            "id": "extra_toppings",
+            "label": "追加トッピング（複数可）",
+            "selectionType": "multiple",
+            "required": false,
+            "maxSelections": 2,
+            "choices": [
+              { "id": "cheese", "label": "とろけるチーズ", "priceDeltaYen": 50 },
+              { "id": "corn_extra", "label": "コーン増量", "priceDeltaYen": 30 }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "drink_oolong",
+        "name": "冷やし烏龍茶",
+        "priceYen": 100,
+        "description": "さっぱり冷たいパック飲料",
+        "initialStockCount": 150
+      }
+    ],
+    "mopConfig": {
+      "storeId": "sample_mop_teppan",
+      "enabled": true,
+      "kitchenMode": "on",
+      "stockControlMode": "per_item",
+      "maxQuantityPerOrder": 4,
+      "mopNumberRange": { "min": 1000, "max": 9999 },
+      "posNumberRange": { "min": 100, "max": 999 }
+    }
+  },
+  {
+    "id": "sample_shop_cafe",
+    "groupName": "【検証用】1年7組（4F逆順配置教室）",
+    "name": "レトロアイスカフェ（Phase 1 検証データ）",
+    "catchphrase": "ひんやりアイスでひと休み！",
+    "description": "生徒棟4Fの特別教室を挟んだ逆順配置（1年7組 -> 1年6組）の RoomId 突合検証用室内販売企画です。",
+    "category": "shop",
+    "votingCategory": "shop",
+    "placeLabel": "生徒棟 4F 1-7",
+    "floor": 4,
+    "roomId": "student_4f_homeroom_1_7",
+    "instagramHandle": "nanryo.cafe_107",
+    "tags": ["販売", "アイス", "カフェ"],
+    "hasCoverImage": true,
+    "galleryCount": 1,
+    "menu": [
+      {
+        "id": "ice_bar_fruit",
+        "name": "フルーツアイスバー",
+        "priceYen": 120,
+        "isRecommended": true
+      }
+    ]
+  },
+  {
+    "id": "sample_exhibit_game",
+    "groupName": "【検証用】ゲーム同好会",
+    "name": "南陵eスポーツ体験＆決勝トーナメント",
+    "catchphrase": "教室予選から後夜祭体育館決勝へ！",
+    "description": "複数開催場所（subPlaceNote）および後夜祭ステージ連携の検証用展示企画です。",
+    "category": "exhibit",
+    "votingCategory": "exhibit",
+    "placeLabel": "生徒棟 1F 3-6",
+    "subPlaceNote": "2日目 15:45〜の後夜祭決勝戦は体育館ステージで開催（在校生限定）",
+    "floor": 1,
+    "roomId": "student_1f_homeroom_3_6",
+    "tags": ["展示", "ゲーム", "体験"],
+    "hasCoverImage": false,
+    "galleryCount": 0,
+    "menu": []
+  },
+  {
+    "id": "sample_art_club",
+    "groupName": "【検証用】美術部",
+    "name": "美術部 作品展",
+    "catchphrase": "部員たちの油彩・水彩・立体作品を展示",
+    "description": "同一特別教室（美術室）の意図的共同利用（allowSharedRoom: true）検証用データです。",
+    "category": "exhibit",
+    "votingCategory": "exhibit",
+    "placeLabel": "生徒棟 3F 美術室",
+    "allowSharedRoom": true,
+    "floor": 3,
+    "roomId": "student_3f_art_room",
+    "tags": ["展示", "アート", "美術"],
+    "hasCoverImage": false,
+    "galleryCount": 0,
+    "menu": []
+  },
+  {
+    "id": "sample_art_course",
+    "groupName": "【検証用】美術科授業作品",
+    "name": "授業作品ギャラリー",
+    "catchphrase": "美術選択生の力作を同時展示",
+    "description": "美術部と美術室を共同利用する展示枠の検証用データです。",
+    "category": "exhibit",
+    "votingCategory": "none",
+    "placeLabel": "生徒棟 3F 美術室",
+    "allowSharedRoom": true,
+    "floor": 3,
+    "roomId": "student_3f_art_room",
+    "tags": ["展示", "授業作品"],
+    "hasCoverImage": false,
+    "galleryCount": 0,
+    "menu": []
+  },
+  {
+    "id": "keion",
+    "groupName": "【検証用】軽音楽部",
+    "name": "NANRYO FES",
+    "catchphrase": "体育館＆視聴覚室の2会場で熱いバンドライブ！",
+    "description": "体育館ステージ・管理棟3F視聴覚室・後夜祭フィナーレの複数ステージ枠と紐づく検証用企画です。",
+    "category": "stage",
+    "votingCategory": "stage",
+    "placeLabel": "体育館 / 管理棟3F 視聴覚室",
+    "subPlaceNote": "時間帯により体育館ステージと管理棟3F視聴覚室で並行開催",
+    "floor": 3,
+    "roomId": "admin_3f_av_room",
+    "tags": ["ステージ", "音楽", "バンド"],
+    "hasCoverImage": false,
+    "galleryCount": 0,
+    "menu": []
+  },
+  {
+    "id": "brass",
+    "groupName": "【検証用】吹奏楽部",
+    "name": "吹奏楽部 アンサンブルコンサート",
+    "catchphrase": "生徒棟4F 音楽室に響く迫力のサウンド！",
+    "description": "音楽室ステージ枠との紐付け検証用データです。",
+    "category": "stage",
+    "votingCategory": "stage",
+    "placeLabel": "生徒棟 4F 音楽室",
+    "floor": 4,
+    "roomId": "student_4f_music_room",
+    "tags": ["ステージ", "音楽", "吹奏楽"],
+    "hasCoverImage": false,
+    "galleryCount": 0,
+    "menu": []
+  },
+  {
+    "id": "cs",
+    "groupName": "コンピューター科学部",
+    "name": "南陵祭2027 公式Webポータル",
+    "catchphrase": "スマホで迷わない！爆速デジタルパンフレット",
+    "description": "マップ非表示企画（hiddenOnMap: true / floor: null / roomId: null）の検証用エントリです。",
+    "category": "exhibit",
+    "votingCategory": "none",
+    "placeLabel": "Webポータル / 校内各所QR",
+    "hiddenOnMap": true,
+    "floor": null,
+    "roomId": null,
+    "tags": ["公式Web", "CS部"],
+    "hasCoverImage": false,
+    "galleryCount": 0,
+    "menu": []
+  }
+]

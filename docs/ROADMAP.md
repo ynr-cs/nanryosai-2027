@@ -4,13 +4,14 @@
 
 ---
 
-## 現在地：完了済み基盤（`v0.1.7` 時点 / 2026-11-17）
+## 現在地：完了済み基盤（`v0.1.13` 時点 / 2026-11-17）
 
 - [x] 2025–2026 全開発資産・議事録・GA4/Speedtest実測の発掘と教訓の明文化（`RETROSPECTIVE_2026.md`）
 - [x] ゼロベース要件・運用設計・MOP仕様の最終合意（`DECISIONS.md` `D-001`〜`D-009`）
 - [x] GitHub（`ynr-cs/nanryosai-2027`）への `ynrcs-old` 初回プッシュ＆非個人コミットメール・`.gitattributes` 設定
 - [x] Firebase プロジェクト `nanryosai-2027` 構築（`ynrcs1000@gmail.com` / Blaze 従量制 / 東京 `asia-northeast1` Firestore Standard Edition / `nanryosai-2027-web` / 新規GA4測定ID `G-VTX813ECF9`）
 - [x] 初期完全閉鎖セキュリティルール（`firestore.rules`）のエミュレータ検証＆クラウド適用、`firebase.json`（Hosting・Emulatorポート定義）作成
+- [x] Phase 1 基盤一式（Next.js Static Export・ESLint二層境界強制・共通Zod型・2026マップ全51室＋11スポット正規化移植・検証＆WebP変換CLI・Functions 2nd Gen `nodejs22`＋Emulator E2E疎通）完了
 
 ---
 
@@ -18,24 +19,24 @@
 
 > **ゴール**: 第1層（Webポータル）と第2層（MOP/POS）がコンパイルレベルで分離された開発土台と、AI運用に最適化されたデータ変換・検証ツールを動かす。
 
-- [ ] **1-1. `Next.js` ＋ `TypeScript` プロジェクト初期化**
-  - [ ] `Next.js`（App Router, `output: 'export'`, `images: { unoptimized: true }`）と `TypeScript`（`strict: true`）を導入
-  - [ ] フォルダ境界分離：`src/types/`、`src/domains/portal/`、`src/domains/mop/`、`src/app/(portal)/`、`src/app/(mop)/`
-  - [ ] ESLint `no-restricted-imports` 設定（`portal` 側から `firebase/auth`・`firebase/functions`・`domains/mop` の import をビルドエラー化）
-  - [ ] `.env.example` と `.env.local` 作成（`nanryosai-2027-web` SDK設定・GA4 `G-VTX813ECF9`・エミュレータ接続切替フラグ）
-  - [ ] `<PortalLink prefetch={false}>` ラッパーコンポーネント作成（一覧画面でのRSC `.txt` プリフェッチ嵐防止）
-  - [ ] GA4計測専用モジュール実装（`auth` 独立、SPAページ遷移トラッキング、`?src=` 保護＝`location.hash` のみ消去する安全ユーティリティ含む）
-  - [ ] CSS変数テーマトークン設計（`P-001`：2027公式テーマ確定後に1ファイルで着せ替え可能なベース作成）
-- [ ] **1-2. 共通ドメイン型定義＆マスターデータ検証・画像圧縮自動化（`D-009`）**
-  - [ ] `src/types/domain.ts` ＋ Zod スキーマ作成（`ProjectMaster` / `StageSlotMaster` / `StoreWorkflowConfig`（調理KVS ON/OFF, オプション, 残数管理単位）/ `PublicLiveStateDoc`）
-  - [ ] 2026年 `campus_map_data.json` から校舎・部屋ポリゴンとバス停ルート座標を抽出し、正規化 `RoomId` へ変換して `data/campus_map_data.json` として移植
-  - [ ] `npm run validate:data` CLI 実装（全企画の `roomId` 実在チェック・部屋重複検知・`stages` との団体名一致チェック・`admin_sync` / `admin-server` なしで完全動作）
-  - [ ] `npm run process-assets` CLI 実装（`sharp`＋`heic-convert` によるサムネ `400px` / 詳細 `800px` の2段階WebP自動生成＆上限サイズ超過エラー検知）
-  - [ ] 開発・表示確認用のダミー/仮マスターデータ（2026構造ベース）を作成
-- [ ] **1-3. Cloud Functions 2nd Gen 基盤初期化（`functions/`）**
-  - [ ] Node.js LTS（`20` または `22`）＋ TypeScript (`strict: true`) で `functions/` 構成
-  - [ ] `esbuild` による超軽量単一バンドルビルド構成（`googleapis` 等の巨大ライブラリ同梱禁止）
-  - [ ] `firebase.json` に本番 `Hosting` 厳格ヘッダー（`Content-Security-Policy`、ハッシュ付きアセット `immutable` キャッシュ等）を追加
+- [x] **1-1. `Next.js` ＋ `TypeScript` プロジェクト初期化**
+  - [x] `Next.js`（App Router, `output: 'export'`, `images: { unoptimized: true }`）と `TypeScript`（`strict: true`）を導入
+  - [x] フォルダ境界分離：`src/types/`、`src/domains/portal/`、`src/domains/venue/`、`src/domains/mop/`、`src/app/(portal)/`、`src/app/(venue)/`、`src/app/(mop)/`
+  - [x] ESLint `no-restricted-imports` / `no-restricted-properties` / 動的 `import()` 遮断設定（`portal` 側から `firebase/auth`・`firebase/functions`・`domains/mop`・`domains/venue` の混入、および `venue` 側から `mop`・MOPキルスイッチへの依存をビルドエラー化）
+  - [x] `.env.example` と `.env.local`（および非機密公開識別子 `.env.production`）作成（`nanryosai-2027-web` SDK設定・GA4 `G-VTX813ECF9`・エミュレータ接続切替フラグ）
+  - [x] `<PortalLink prefetch={false}>` ラッパーコンポーネント作成（一覧画面でのRSC `.txt` プリフェッチ嵐防止）
+  - [x] GA4計測専用モジュール実装（`auth` 独立、SPAページ遷移トラッキング、`?src=` 保護＝`location.hash` のみ消去する安全ユーティリティ含む）
+  - [x] CSS変数テーマトークン設計（`P-001`：2027公式テーマ確定後に1ファイルで着せ替え可能なベース作成）
+- [x] **1-2. 共通ドメイン型定義＆マスターデータ検証・画像圧縮自動化（`D-009`）**
+  - [x] `src/types/domain.ts` ＋ Zod スキーマ作成（`ProjectMaster` / `StageSlotMaster` / `StoreMopConfig`（調理KVS ON/OFF, オプション, 残数管理単位）/ `PublicLiveStateDoc`）
+  - [x] 2026年 `campus_map_data.json` から校舎・部屋ポリゴンとバス停ルート座標を抽出し、正規化 `RoomId` へ変換して `data/campus_map_data.json` として移植
+  - [x] `npm run validate:data` CLI 実装（全企画の `roomId` 実在チェック・部屋重複検知・`stages` との団体参照チェック・`admin_sync` / `admin-server` なしで完全動作）
+  - [x] `npm run process-assets` CLI 実装（`sharp`＋`heic-convert` によるサムネ `400px` / 詳細 `800px` の2段階WebP自動生成＆上限サイズ超過エラー検知）
+  - [x] 開発・表示確認用の検証用マスターデータ（2026構造ベース）を作成
+- [x] **1-3. Cloud Functions 2nd Gen 基盤初期化（`functions/`）**
+  - [x] Node.js LTS（`nodejs22`）＋ TypeScript (`strict: true`) で `functions/` 構成
+  - [x] `esbuild` による超軽量単一バンドルビルド構成（`googleapis` 等の巨大ライブラリ同梱禁止・共有Zodスキーマのみインライン展開）
+  - [x] `firebase.json` に本番 `Hosting` 厳格ヘッダー（`Content-Security-Policy`、ハッシュ付きアセット `immutable` キャッシュ等）を追加
 
 ---
 

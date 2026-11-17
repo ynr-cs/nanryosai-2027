@@ -1,0 +1,41 @@
+{
+  "name": "nanryosai-2027",
+  "version": "0.1.13",
+  "private": true,
+  "description": "第25回 南陵祭2027 公式Webポータル ＆ 完全分離型MOP/POS基盤",
+  "scripts": {
+    "dev": "next dev -p 3070",
+    "build": "next build",
+    "build:functions": "npm --prefix functions run build",
+    "typecheck": "tsc --noEmit && npm --prefix functions run typecheck",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "migrate:map": "tsx scripts/migrate-map-2026.ts",
+    "validate:data": "tsx scripts/validate-data.ts",
+    "process-assets": "tsx scripts/process-assets.ts"
+  },
+  "dependencies": {
+    "firebase": "^11.10.0",
+    "next": "^15.5.29",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@next/eslint-plugin-next": "^15.5.29",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "heic-convert": "^2.1.0",
+    "sharp": "^0.34.2",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.35.0",
+    "vitest": "^3.2.7"
+  }
+}
