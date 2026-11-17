@@ -16,6 +16,34 @@
 
 ---
 
+## [0.1.6] GitHub初回プッシュ完了・Firebase 2027プロジェクト構築＆初期ルール適用・リポジトリ衛生整備 - 2026-11-17
+
+### メタ情報
+
+- **AIモデル**: Antigravity (Gemini)
+- **筆者**: AI & 山本洋昌 (Uokun)
+- **変更理由**: 第25回南陵祭2027の実装フェーズへ入る前段として、GitHub初回プッシュ、`nanryosai-2027` Firebaseプロジェクト＆東京リージョンFirestore・Webアプリの立ち上げ、完全閉鎖ベースラインのセキュリティルール適用、および開発環境設定の統一を行うため。
+
+### 追加 / 変更 (Added / Changed)
+
+- **GitHub 初回プッシュとローカルGit衛生設定**:
+  - `.git/config`（ローカル設定）に `credential.username=ynrcs-old` および非個人用メール `user.email=ynrcs-old@users.noreply.github.com` を設定し、`0.1.5`（`ad936ff`）までを `origin/main` へ初回プッシュ完了。
+  - `.gitattributes` を新規作成し、テキストファイルの改行コードを `LF` に統一（`.ps1`/`.bat`/`.cmd` は `CRLF`、画像等は `binary` 指定）してクロスプラットフォームの差分警告を防止。
+  - `.agents/rules/commit-and-versioning-rules.md` に不足していた1行を補い、互換維持用の `.agent/rules/` とルール内容を完全同期。
+- **Firebase 2027 基盤 (`nanryosai-2027`) の立ち上げ**:
+  - `ynrcs1000@gmail.com` 配下に Firebase プロジェクト `nanryosai-2027`（Hosting URL: `https://nanryosai-2027.web.app`）と Web アプリ `nanryosai-2027-web` を新規作成。
+  - `.firebaserc`、`firebase.json`（Firestore `asia-northeast1` / Hosting `public: "out"` + 基本セキュリティヘッダ / Local Emulator ポート定義 `4000, 5000, 5001, 8080, 9099`）、`firestore.indexes.json` を作成。
+  - `firestore-rules-author` により完全フェイルクローズド（`allow read, write: if false;`）の初期 `firestore.rules` を作成し、ローカル Firestore Emulator で全CRUD操作の `HTTP 403` 拒否検証後に本番クラウド（Standard Edition, `asia-northeast1`）へデプロイ完了。
+
+### 得られた知見 / 注意点 (Learned / Caveats)
+
+- **Cloud Firestore API 有効化と `(default)` DB の仕様**:
+  - `nanryosai-2027` には当初データベースが存在しなかったが、`firebase.json` 記載のロケーション（`asia-northeast1`）および標準 `STANDARD` エディションで `(default)` データベースが作成され、初期セキュリティルールのリリースまで正常完了した。
+- **今後の手動コンソール作業（要実施）**:
+  - 請求先アカウント紐付け（Blazeプラン有効化＋予算アラート設定）と、Google Analytics（GA4）新規プロパティ有効化による `measurementId` 取得は、Firebase コンソール上での設定が必要。
+
+---
+
 ## [0.1.5] 校内実測Speedtest（BYOD2018壊滅データ）の検証とNext.js＋Firebase一本化・BAN完全廃止の確定 - 2026-11-17
 
 ### メタ情報

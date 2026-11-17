@@ -1,0 +1,14 @@
+# 改行コードを LF に統一し、OS間の差分・コミット時警告を防ぐ
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# バイナリファイルは改行変換しない
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff2 binary
+*.pdf binary
