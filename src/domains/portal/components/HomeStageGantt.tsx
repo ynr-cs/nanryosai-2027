@@ -20,9 +20,17 @@ function hhmmToHours(hhmm: string): number {
 }
 
 /**
- * トップページ「ステージ タイムテーブル」Day1 / Day2 ガントチャート
+ * トップページ／ステージページ「ステージ タイムテーブル」Day1 / Day2 ガントチャート
  */
-export function HomeStageGantt({ slots }: { readonly slots: readonly StageSlotMaster[] }) {
+export function HomeStageGantt({
+  slots,
+  highlightVenueId = 'all',
+  hideViewAllLink = false,
+}: {
+  readonly slots: readonly StageSlotMaster[];
+  readonly highlightVenueId?: StageVenueId | 'all';
+  readonly hideViewAllLink?: boolean;
+}) {
   const [day, setDay] = useState<1 | 2>(2);
   const [nowPct, setNowPct] = useState<number | null>(null);
   const { showToast } = usePortalToast();
@@ -52,9 +60,11 @@ export function HomeStageGantt({ slots }: { readonly slots: readonly StageSlotMa
         <h2 className="sec-title" id="h-stage">
           ステージ タイムテーブル
         </h2>
-        <PortalLink href="/stages" className="sec-link">
-          すべて見る <PortalIcon name="arrow-right" size={15} />
-        </PortalLink>
+        {!hideViewAllLink ? (
+          <PortalLink href="/stages" className="sec-link">
+            すべて見る <PortalIcon name="arrow-right" size={15} />
+          </PortalLink>
+        ) : null}
       </div>
 
       <div className="day-selector" role="tablist" aria-label="開催日切替">
@@ -82,7 +92,12 @@ export function HomeStageGantt({ slots }: { readonly slots: readonly StageSlotMa
         <div className="gantt-side">
           <div>場所</div>
           {GANTT_LANES.map((lane) => (
-            <div key={lane.id}>{lane.label}</div>
+            <div
+              key={lane.id}
+              className={highlightVenueId === lane.id ? 'gantt-lane-active' : undefined}
+            >
+              {lane.label}
+            </div>
           ))}
         </div>
         <div className="gantt-scroll">
@@ -93,7 +108,14 @@ export function HomeStageGantt({ slots }: { readonly slots: readonly StageSlotMa
               ))}
             </div>
             {GANTT_LANES.map((lane) => (
-              <div key={lane.id} className="gantt-row">
+              <div
+                key={lane.id}
+                className={
+                  highlightVenueId !== 'all' && highlightVenueId !== lane.id
+                    ? 'gantt-row dimmed'
+                    : 'gantt-row'
+                }
+              >
                 {daySlots
                   .filter((slot) => slot.venueId === lane.id)
                   .map((slot) => {

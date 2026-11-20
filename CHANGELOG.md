@@ -16,6 +16,29 @@
 
 ---
 
+## [0.1.18] リアルタイム情報のレスポンシブ一本化（スマホ横長バー／PC3列）＆ インタラクティブ遷移連携 - 2026-11-20
+
+### メタ情報
+
+- **AIモデル**: Antigravity
+- **筆者**: AI & 山本洋昌 (Uokun)
+- **変更理由**: スマホ＝縦積み横長バー／PC＝3列グリッドへのレスポンシブ一本化（比較用 `?venues=` クエリの整理）と、リアルタイム情報カード／バーからの会場別ステージ・出演企画へのインタラクティブな直接遷移を実現するため。
+
+### 追加 / 変更 (Added / Changed)
+
+- **リアルタイム情報レスポンシブ一本化＆インタラクティブ化（`HomeLiveVenues.tsx` / `portal.css`）**:
+  - 試験比較用クエリ（`?venues=grid|bar`）と `<Suspense>` ラッパーを整理し、CSS コンテナクエリ（`@container (max-width: 640px)` で横長バー、それ以上のPC/タブレットで3列グリッド）へ一本化。
+  - 各カード／バーにストレッチリンク（`/stages?venue=<venueId>`）とホバー・押下（`scale: 0.985`）・`:focus-visible` フィードバックを実装し、`NOW` 出演枠に `linkedProjectId` がある場合はそのまま `/projects/[id]` へ直接遷移できる独立導線（`z-index: 2`）を配置。
+- **ステージ一覧の `?venue=` ディープリンク連動（`StagesCatalogClient.tsx` / `HomeStageGantt.tsx` / `/stages`）**:
+  - `src/domains/portal/components/StagesCatalogClient.tsx` を新設し、`/stages?venue=gym_stage` 等の遷移時に該当会場タブの自動選択・ライブ混雑/遅延ステータス表示・プログラム一覧の自動絞り込み・ガントチャート対象レーン強調を行うよう拡張（Static Export 対応のため `<Suspense>` 分離）。
+
+### 得られた知見 / 注意点 (Learned / Caveats)
+
+- **カード全体クリックと内部リンクの両立（`<a>` ネスト禁止準拠）**:
+  - HTML 仕様上 `<a>` の中に `<a>` を入れられないため、見出し内 `<PortalLink className="venue-card-link">` の `::after` 疑似要素でカード全体を覆い、内部の `NOW` リンクのみ `position: relative; z-index: 2` で前面配置することでアクセシビリティと直接遷移を両立した。
+
+---
+
 ## [0.1.17] ページ遷移方向連動アニメーション（ヘッダ・下部ナビ固定＋コンテンツ＆フッタ切替） - 2026-11-20
 
 ### メタ情報

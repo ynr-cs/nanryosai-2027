@@ -1,12 +1,9 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { PortalIcon } from '@/domains/portal/components/PortalIcon';
 import { PortalLink } from '@/domains/portal/components/PortalLink';
 import { usePortalLiveState } from '@/domains/portal/context/LiveStateProvider';
 import type { StageSlotMaster, StageVenueId } from '@/types/domain';
-
-type VenueLayoutMode = 'bar' | 'grid';
 
 const VENUES: ReadonlyArray<{
   readonly id: StageVenueId;
@@ -24,50 +21,24 @@ const CONGESTION_TEXT: Readonly<Record<string, string>> = {
   restricted: '入場制限中',
 };
 
-function shortGroupLabel(raw: string): string {
-  return raw.replace(/^【検証用】/, '');
-}
-
-function HomeLiveVenuesInner({
-  slots,
-  layoutMode,
-  showCompareToggle,
-}: {
-  readonly slots: readonly StageSlotMaster[];
-  readonly layoutMode: VenueLayoutMode;
-  readonly showCompareToggle: boolean;
-}) {
+/**
+ * トップページ「リアルタイム情報」3会場 NOW / NEXT
+ * - スマホ（<= 640px）では縦積み横長バー、PC/タブレットでは3列グリッドとしてレスポンシブ表示
+ * - 各カード／バーのタップで該当会場のステージ詳細（/stages?venue=...）へ遷移し、
+ *   出演団体に企画ページがある場合は NOW 枠から直接企画詳細へも移動可能
+ */
+export function HomeLiveVenues({ slots }: { readonly slots: readonly StageSlotMaster[] }) {
   const { data } = usePortalLiveState();
 
   return (
     <section aria-labelledby="h-live">
       <div className="sec-head">
-        <div className="sec-title-group">
-          <h2 className="sec-title" id="h-live">
-            リアルタイム情報
-          </h2>
-          {showCompareToggle ? (
-            <div className="venue-compare-switch" role="group" aria-label="表示比較切替">
-              <PortalLink
-                href="/?venues=bar"
-                className={layoutMode === 'bar' ? 'vcs-btn active' : 'vcs-btn'}
-                scroll={false}
-              >
-                横長バー
-              </PortalLink>
-              <PortalLink
-                href="/?venues=grid"
-                className={layoutMode === 'grid' ? 'vcs-btn active' : 'vcs-btn'}
-                scroll={false}
-              >
-                3列
-              </PortalLink>
-            </div>
-          ) : null}
-        </div>
+        <h2 className="sec-title" id="h-live">
+          リアルタイム情報
+        </h2>
         <span className="live-badge num">LIVE</span>
       </div>
-      <div className="venue-grid" data-venue-layout={layoutMode}>
+      <div className="venue-grid">
         {VENUES.map((venue) => {
           const venueSlots = [...slots]
             .filter((s) => s.venueId === venue.id)
@@ -96,14 +67,27 @@ function HomeLiveVenuesInner({
                   ? 'venue-status soon'
                   : 'venue-status';
 
-          const timeLabel = nowSlot ? `${nowSlot.startTime} – ${nowSlot.endTime}` : '日程確定後に更新';
+          const timeLabel = nowSlot
+            ? `${nowSlot.startTime} – ${nowSlot.endTime}`
+            : '日程確定後に更新';
           const delayNote =
             live && live.delayMinutes > 0 ? ` (+${live.delayMinutes}分)` : '';
+
+          const nowGroupName = nowSlot ? nowSlot.groupName : 'スケジュール確認';
 
           return (
             <div key={venue.id} className="venue-card">
               <div className="venue-head">
-                <h3 className="venue-name">{venue.label}</h3>
+                <h3 className="venue-name">
+                  <PortalLink
+                    href={`/stages?venue=${venue.id}`}
+                    className="venue-card-link"
+                    aria-label={`${venue.label}のステージタイムテーブルを見る`}
+                  >
+                    <span>{venue.label}</span>
+                    <PortalIcon name="chevron-right" size={14} className="venue-arrow" />
+                  </PortalLink>
+                </h3>
                 <span className={statusClass}>
                   <span className="dot" aria-hidden="true" />
                   {statusText}
@@ -113,18 +97,36 @@ function HomeLiveVenuesInner({
                   {delayNote}
                 </span>
               </div>
-              <div className="venue-now">
-                <span className="venue-now-pill num">NOW</span>
-                <div className="venue-now-body">
-                  <div className="venue-group">
-                    {nowSlot ? shortGroupLabel(nowSlot.groupName) : 'スケジュール確認'}
+
+              {nowSlot?.linkedProjectId ? (
+                <PortalLink
+                  href={`/projects/${nowSlot.linkedProjectId}`}
+                  className="venue-now venue-now-link"
+                  aria-label={`${nowGroupName} の企画詳細を見る`}
+                >
+                  <span className="venue-now-pill num">NOW</span>
+                  <div className="venue-now-body">
+                    <div className="venue-group">{nowGroupName}</div>
+                    <div className="venue-time venue-time-grid num">
+                      {timeLabel}
+                      {delayNote}
+                    </div>
                   </div>
-                  <div className="venue-time venue-time-grid num">
-                    {timeLabel}
-                    {delayNote}
+                  <PortalIcon name="chevron-right" size={14} className="venue-now-arrow" />
+                </PortalLink>
+              ) : (
+                <div className="venue-now">
+                  <span className="venue-now-pill num">NOW</span>
+                  <div className="venue-now-body">
+                    <div className="venue-group">{nowGroupName}</div>
+                    <div className="venue-time venue-time-grid num">
+                      {timeLabel}
+                      {delayNote}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
+
               <div className="venue-next">
                 <span className="venue-next-label num">NEXT</span>
                 <span className="venue-next-title">
@@ -136,37 +138,5 @@ function HomeLiveVenuesInner({
         })}
       </div>
     </section>
-  );
-}
-
-function HomeLiveVenuesWithQuery({ slots }: { readonly slots: readonly StageSlotMaster[] }) {
-  const searchParams = useSearchParams();
-  const venuesParam = searchParams.get('venues');
-  const layoutMode: VenueLayoutMode = venuesParam === 'grid' ? 'grid' : 'bar';
-  const showCompareToggle = venuesParam === 'grid' || venuesParam === 'bar';
-
-  return (
-    <HomeLiveVenuesInner
-      slots={slots}
-      layoutMode={layoutMode}
-      showCompareToggle={showCompareToggle}
-    />
-  );
-}
-
-/**
- * トップページ「リアルタイム情報」3会場 NOW / NEXT
- * - スマホ（<= 640px）ではデフォルトで縦積み横長バー表示（`?venues=grid` で旧3列比較可）
- * - Static Export の CSR 退行防止のため `useSearchParams()` を `<Suspense>` で分離
- */
-export function HomeLiveVenues({ slots }: { readonly slots: readonly StageSlotMaster[] }) {
-  return (
-    <Suspense
-      fallback={
-        <HomeLiveVenuesInner slots={slots} layoutMode="bar" showCompareToggle={false} />
-      }
-    >
-      <HomeLiveVenuesWithQuery slots={slots} />
-    </Suspense>
   );
 }
