@@ -17,6 +17,7 @@ import { WaveLogo } from '@/domains/portal/components/WaveLogo';
 import { FavoritesProvider, useFavorites } from '@/domains/portal/context/FavoritesProvider';
 import { LiveStateProvider } from '@/domains/portal/context/LiveStateProvider';
 import { useTheme, type ThemeMode } from '@/domains/portal/context/ThemeProvider';
+import { appVersion } from '@/lib/env';
 
 function syncViewportDensity(): void {
   const vv = window.visualViewport;
@@ -156,20 +157,32 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
     };
   }, []);
 
+  const closeDrawerImmediate = useCallback(() => {
+    const dialog = dialogRef.current;
+    if (dialog?.open) {
+      delete dialog.dataset.drawerState;
+      dialog.close();
+    }
+    setMenuOpen(false);
+  }, []);
+
   const closeDrawer = useCallback(() => {
     const dialog = dialogRef.current;
-    const scroller = scrollerRef.current;
     if (!dialog || !dialog.open) {
       setMenuOpen(false);
       return;
     }
-    if (!scroller) {
+    const prefersReduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) {
+      delete dialog.dataset.drawerState;
       dialog.close();
       setMenuOpen(false);
       return;
     }
     isOpeningRef.current = false;
-    scroller.scrollTo({ left: 0, behavior: 'auto' });
+    dialog.dataset.drawerState = 'closing';
   }, []);
 
   const openDrawer = useCallback(() => {
@@ -180,14 +193,14 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
       return;
     }
     isOpeningRef.current = true;
+    dialog.dataset.drawerState = 'open';
     if (!dialog.open) {
       dialog.showModal();
     }
-    scroller.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        scroller.scrollTo({ left: sheet.offsetWidth, behavior: 'auto' });
-      });
+    scroller.scrollTo({ left: sheet.offsetWidth, behavior: 'instant' as ScrollBehavior });
+    setMenuOpen(true);
+    window.requestAnimationFrame(() => {
+      isOpeningRef.current = false;
     });
   }, []);
 
@@ -203,7 +216,7 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[entries.length - 1];
-        if (!entry || !dialog.open) {
+        if (!entry || !dialog.open || dialog.dataset.drawerState === 'closing') {
           return;
         }
         if (entry.intersectionRatio >= 0.08) {
@@ -212,6 +225,7 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
         if (entry.intersectionRatio === 1) {
           setMenuOpen(true);
         } else if (!isOpeningRef.current && entry.intersectionRatio < visibleThreshold) {
+          delete dialog.dataset.drawerState;
           dialog.close();
           setMenuOpen(false);
         }
@@ -237,6 +251,7 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
 
     const handleNativeClose = () => {
       isOpeningRef.current = false;
+      delete dialog.dataset.drawerState;
       setMenuOpen(false);
     };
     dialog.addEventListener('close', handleNativeClose);
@@ -444,7 +459,22 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
       >
         <div className="portal-drawer-scroller" ref={scrollerRef}>
           <div className="portal-drawer-spacer" aria-hidden="true" />
-          <aside className="portal-drawer-sheet" ref={sheetRef} aria-label="メニュー">
+          <aside
+            className="portal-drawer-sheet"
+            ref={sheetRef}
+            aria-label="メニュー"
+            onAnimationEnd={(e) => {
+              const dialog = dialogRef.current;
+              if (
+                e.target === sheetRef.current &&
+                dialog?.dataset.drawerState === 'closing'
+              ) {
+                delete dialog.dataset.drawerState;
+                dialog.close();
+                setMenuOpen(false);
+              }
+            }}
+          >
             <div className="menu-header">
               <span>メニュー</span>
               <button
@@ -459,53 +489,116 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
             </div>
             <ul className="menu-list">
               <li>
-                <PortalLink href="/guide#overview" onClick={closeDrawer}>
+                <PortalLink href="/guide#overview" onClick={closeDrawerImmediate}>
                   <PortalIcon name="info" size={19} />
                   開催概要
                 </PortalLink>
               </li>
               <li>
-                <PortalLink href="/guide#access" onClick={closeDrawer}>
+                <PortalLink
+                  href="/order"
+                  className="menu-order-glow"
+                  onClick={closeDrawerImmediate}
+                >
+                  <PortalIcon name="bag" size={19} />
+                  オーダー
+                  <span className="menu-order-pill">注文</span>
+                </PortalLink>
+              </li>
+              <li>
+                <PortalLink href="/projects" onClick={closeDrawerImmediate}>
+                  <PortalIcon name="grid" size={19} />
+                  企画一覧
+                </PortalLink>
+              </li>
+              <li>
+                <PortalLink href="/stages" onClick={closeDrawerImmediate}>
+                  <PortalIcon name="mic" size={19} />
+                  ステージ一覧
+                </PortalLink>
+              </li>
+              <li>
+                <PortalLink href="/map" onClick={closeDrawerImmediate}>
+                  <PortalIcon name="map" size={19} />
+                  マップ
+                </PortalLink>
+              </li>
+              <li>
+                <PortalLink href="/guide#access" onClick={closeDrawerImmediate}>
                   <PortalIcon name="train" size={19} />
                   アクセス
                 </PortalLink>
               </li>
               <li>
-                <PortalLink href="/guide#news" onClick={closeDrawer}>
-                  <PortalIcon name="megaphone" size={19} />
-                  お知らせ
-                </PortalLink>
-              </li>
-              <li>
-                <PortalLink href="/guide#payment" onClick={closeDrawer}>
-                  <PortalIcon name="credit-card" size={19} />
-                  使える決済
+                <PortalLink href="/guide#about" onClick={closeDrawerImmediate}>
+                  <PortalIcon name="sparkles" size={19} />
+                  コンピュータ科学部について
                 </PortalLink>
               </li>
             </ul>
 
             <div className="menu-sub">
               <p className="menu-sub-label">便利機能</p>
-              <div className="quick-grid">
-                <PortalLink href="/projects?fav=1" className="quick-btn" onClick={closeDrawer}>
-                  <PortalIcon name="star-fill" size={15} style={{ color: '#f59e0b' }} />
-                  お気に入り
+              <div className="quick-grid quick-grid-lg">
+                <PortalLink
+                  href="/projects?fav=1"
+                  className="quick-btn quick-btn-fav"
+                  onClick={closeDrawerImmediate}
+                >
+                  <span className="quick-btn-icon fav">
+                    <PortalIcon name="star-fill" size={18} />
+                  </span>
+                  <span>お気に入り</span>
                   <span className="count num">{favCount}</span>
                 </PortalLink>
-                <PortalLink href="/guide#voting" className="quick-btn" onClick={closeDrawer}>
-                  <PortalIcon name="trophy" size={15} style={{ color: '#f59e0b' }} />
-                  人気投票
+                <PortalLink
+                  href="/guide#voting"
+                  className="quick-btn"
+                  onClick={closeDrawerImmediate}
+                >
+                  <span className="quick-btn-icon trophy">
+                    <PortalIcon name="trophy" size={18} />
+                  </span>
+                  <span>人気投票</span>
                 </PortalLink>
-                <PortalLink href="/guide#survey" className="quick-btn" onClick={closeDrawer}>
-                  <PortalIcon name="chat-heart" size={15} style={{ color: '#ec4899' }} />
-                  アンケート
-                </PortalLink>
-                <PortalLink href="/guide#terms" className="quick-btn" onClick={closeDrawer}>
-                  <PortalIcon name="file-text" size={15} />
-                  利用規約
+                <PortalLink
+                  href="/guide#survey"
+                  className="quick-btn"
+                  onClick={closeDrawerImmediate}
+                >
+                  <span className="quick-btn-icon survey">
+                    <PortalIcon name="chat-heart" size={18} />
+                  </span>
+                  <span>アンケート</span>
                 </PortalLink>
               </div>
             </div>
+
+            <details className="menu-accordion">
+              <summary className="menu-accordion-summary">お知らせ・規約など</summary>
+              <ul className="menu-accordion-list">
+                <li>
+                  <PortalLink href="/guide#news" onClick={closeDrawerImmediate}>
+                    お知らせ
+                  </PortalLink>
+                </li>
+                <li>
+                  <PortalLink href="/guide#payment" onClick={closeDrawerImmediate}>
+                    使える決済
+                  </PortalLink>
+                </li>
+                <li>
+                  <PortalLink href="/guide#terms" onClick={closeDrawerImmediate}>
+                    利用規約
+                  </PortalLink>
+                </li>
+                <li>
+                  <PortalLink href="/guide#privacy" onClick={closeDrawerImmediate}>
+                    プライバシーポリシー
+                  </PortalLink>
+                </li>
+              </ul>
+            </details>
 
             <div className="menu-bottom">
               <div className="theme-grid" role="group" aria-label="テーマ設定">
@@ -522,7 +615,10 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
                   </button>
                 ))}
               </div>
-              <p className="menu-credit">Powered by コンピュータ科学部</p>
+              <div className="menu-meta-foot">
+                <p className="menu-credit">Powered by コンピュータ科学部</p>
+                <p className="menu-version num">v{appVersion}</p>
+              </div>
             </div>
           </aside>
         </div>

@@ -96,3 +96,4 @@ export function shouldConnectClientEmulator(
 
 export const isMopBuildEnabled = publicEnv.NEXT_PUBLIC_MOP_ENABLED === 'true';
 export const isLiveStateAutoEnabled = publicEnv.NEXT_PUBLIC_LIVE_STATE_ENABLED === 'true';
+export const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.1.20';
