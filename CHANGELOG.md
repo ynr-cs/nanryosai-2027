@@ -16,6 +16,91 @@
 
 ---
 
+## [0.1.16] Phase 2 ベースUI改善（Webフォント刷新・スマホ横長LIVEバー・ハイライトカルーセル・遷移高速化・フル幅ロゴ） - 2026-11-20
+
+### メタ情報
+
+- **AIモデル**: Antigravity
+- **筆者**: AI & 山本洋昌 (Uokun)
+- **変更理由**: Phase 2 ポータルUIの第一印象と操作性を引き上げるため、① システム依存の細いフォント刷新（`Noto Sans JP` + `Plus Jakarta Sans` セルフホスト化＆太めウェイト統一）、② スマホ時の「リアルタイム情報」窮屈解消（縦積み横長バー化＋`/?venues=grid|bar` 比較クエリ対応）、③ 「企画・展示 ハイライト」の検証用表記除去＆本番20団体以上を見据えた横スクロール・スナップカルーセル化、④ ページ遷移ロード体感の高速化、⑤ フッター大型ロゴ `南陵祭'27` のウィンドウ横幅限界フィットを一括実装する。
+
+### 追加 / 変更 (Added / Changed)
+
+- **タイポグラフィ刷新（セルフホスト Web フォント化）**:
+  - `src/app/layout.tsx` で `Noto_Sans_JP`（`500`/`700`/`900`）および `Plus_Jakarta_Sans`（`500`/`700`/`800`）を `next/font/google`（`display: 'swap'`・`'self'` 配信）で読み込み、`src/styles/tokens.css` の `--font-sans` と `.num` へ適用し、本文ベースウェイトを `500` へ引き上げて視認性と質感を改善。
+- **スマホ版リアルタイム情報「縦積み横長バー」＋ 比較クエリ対応**:
+  - `src/domains/portal/components/HomeLiveVenues.tsx` および `src/styles/portal.css` を更新し、モバイル幅（`@container (max-width: 640px)`）ではデフォルトで 1列×3行の横長バー表示（左アクセントライン・会場名＋混雑ピル＋時刻ヘッダ＋`NOW`/`NEXT` 行）とし、`/?venues=grid` で旧3列表示と即時比較できるようにした（`useSearchParams` は `<Suspense>` 分離し Static Export の0ms初期描画を維持。クエリ指定時のみ比較トグル表示）。
+- **企画ハイライトの表記整理 ＆ 横スクロールカルーセル化**:
+  - `data/projects.json` / `data/stages.json` から `【検証用】`・`（調理非干渉モード）`・`（Phase 1 検証データ）` 等の検証ラベルを自然なサンプル表記へ整理（ID・座標・MOP設定・検証ルールは維持）。
+  - `src/domains/portal/components/HomeProjectHighlights.tsx` を CSS Scroll Snap ベースの横スクロールカルーセル（最大6件抜粋・右端次カード Peek 表示・`overscroll-behavior-x: contain`・`<>` ボタン・24px以上ヒット領域のドットインジケータ・`aria-live="polite"` 通知）へ刷新し、`PortalIcon.tsx` へ `chevron-left` を追加。
+- **ページ遷移ロード高速化**:
+  - `src/styles/tokens.css` の `html` から `scroll-behavior: smooth` を撤去し、Next.js App Router のルート遷移時のページ先頭スクロール引っかかりを解消。
+  - `src/domains/portal/components/PortalLink.tsx` でデフォルト `prefetch={false}`（大量一覧での無差別先読み抑止）を保ったまま、ホバー・タッチ開始・フォーカス時に1回だけ `router.prefetch()` を走らせる意図ベース先読みを導入し、`src/domains/portal/components/PortalShell.tsx` では主要導線（`/`, `/projects`, `/order`, `/stages`, `/map`, `/guide`）をアイドル時に自動プリフェッチするよう改善。
+- **フッター大型ロゴのウィンドウ横幅限界フィット**:
+  - `src/domains/portal/components/WaveLogo.tsx` に `ResizeObserver`＋`document.fonts.ready` 連動の自動幅フィット計測（read-before-write でリフロー連鎖なし）を実装し、`src/styles/portal.css` の `.biglogo-wrap` 左右余白撤廃とウェーブ上端余白確保により、390pxスマホ〜1280px以上PCまで画面横幅限界（約99%）へフィットさせた。
+
+### 得られた知見 / 注意点 (Learned / Caveats)
+
+- **Static Export 下での `html { scroll-behavior: smooth; }` と遷移体感**:
+  - グローバルの `scroll-behavior: smooth` は Next.js App Router の遷移後スクロールリセットを遅延させ体感速度を大きく損なうため、`html` には設定せずカルーセル等スクロールコンテナ側へ `@media (prefers-reduced-motion: no-preference)` で局所適用するのが適切。
+- **`useSearchParams()` の `<Suspense>` 分離による 0ms 静的HTML維持**:
+  - `/?venues=grid|bar` の比較クエリ対応でも `<Suspense fallback>` にデフォルト `bar` レイアウトをそのまま渡すことで、`out/index.html` の初期静的描画を一切欠損させずに動的比較切替を実現できる。
+
+---
+
+## [0.1.15] 公式Webポータル共通シェル＆トップページUIの Next.js 本番構成実装とデプロイ基盤整備 - 2026-11-20
+
+### メタ情報
+
+- **AIモデル**: Antigravity
+- **筆者**: AI & 山本洋昌 (Uokun)
+- **変更理由**: プレビューで合意した水色基調デザイン（ライト／ダーク／自動テーマ、端末画面サイズ・高さに応じた自動スケーリング、共通ヘッダー、ヘッダー直下緊急バナー枠、中央「オーダー」強調下部5タブ、右スライドドロワー、トップページ各セクション）を `DECISIONS.md`（`D-001`〜`D-010`）・ESLint境界・厳格CSP準拠の Next.js 15 Static Export 本番構成として構築し、`nanryosai-2027.web.app` へ先行展開するため。
+
+### 追加 / 変更 (Added / Changed)
+
+- **静的マスター分離（`campus_map_data.json` 混入防止: `PHASE2_PLAN.md §1-①`）**:
+  - `src/domains/portal/lib/portal-master.ts`（`projects.json` / `stages.json` 専用）と `src/domains/portal/lib/map-master.ts`（`campus_map_data.json` 専用）へ物理分割し、`master-data.ts` は互換再エクスポート化。
+- **テーマ・スケーリング・デザインシステム**:
+  - `public/theme-init.js` および `src/app/layout.tsx`（`viewport.colorScheme = 'light dark'`, `next/font/google` セルフホスト `Inter` 読み込み, `<Script strategy="beforeInteractive" />`）を追加し、FOUCなしでのテーマ復元と端末サイズ別ルート文字サイズ自動最適化（`data-density="compact"` 等）を実装。
+  - `src/styles/tokens.css` へ水色テーマ・ダークモード用トークンを追加し、`src/styles/portal.css`（`.portal-shell` / `.portal-main` スコープ）を新設。
+- **ポータル共通シェル・コンポーネント＆主要ルート**:
+  - `PortalIcon.tsx`（外部CDN不要のCSP準拠インラインSVG）、`LiveStateProvider.tsx`（ポータル横断60秒スロットル＋`visibilitychange`）、`FavoritesProvider.tsx`（`localStorage` 完結お気に入り）、`ThemeProvider.tsx`（ライト／ダーク／自動＋別タブ同期）、`EmergencyBanner.tsx`、`WaveLogo.tsx`、`PortalShell.tsx`（`<dialog>` ＋ CSS Scroll Snap＋`100svh`＋`IntersectionObserver` による右スライドハンバーガーメニュー＆下部5タブ）を実装。
+  - トップページ `src/app/(portal)/page.tsx`（`HomeCountdown`, `HomeLiveVenues`, `HomeProjectHighlights`, `HomeOrderPromo`, `HomeStageGantt`, 開催概要・注意事項、お知らせ）および `/projects`, `/projects/[id]`（3段階キルスイッチ `<OrderEntrySlot />` ＋ `FavoriteButton`）, `/stages`, `/map`, `/guide` を構築。
+
+### 得られた知見 / 注意点 (Learned / Caveats)
+
+- **`dangerouslySetInnerHTML` 禁止環境 ＋ 厳格 CSP 下でのテーマ・アイコン設計**:
+  - `eslint.config.mjs` で `dangerouslySetInnerHTML` / `innerHTML` が禁止されているため、FOUC防止スクリプトは `public/theme-init.js` として `'self'` から `beforeInteractive` で読み込み、アイコンは外部 CDN（jsDelivr 等）を使わずインライン SVG 化した。
+- **ESLint 9 Flat Config と `.js` ブラウザスクリプト**:
+  - `js.configs.recommended` の `no-undef` が `public/*.js` にも適用されるため、ファイル先頭に `/* global window, document, localStorage */` を明記してブラウザグローバルを宣言する必要がある。
+
+---
+
+## [0.1.14] Phase 2 実装計画書の策定と第1層バックエンド完結・公式中立性・段階的UI設計方針の確定 - 2026-11-17
+
+### メタ情報
+
+- **AIモデル**: Antigravity (Gemini)
+- **筆者**: AI & 山本洋昌 (Uokun)
+- **変更理由**: Phase 2（第1層「公式Webポータル基盤」）の実装着手にあたり、① Phase 2 単体で本番公開可能とするための `/venue` バックエンド＆セキュリティルール境界、② 来春〜夏に確定する開催日・GP投票URL・お知らせの SSOT 管理、③ 2026年の「特定部活優遇」指摘（受付QR不許可）とフッター埋没の双方を解決する公式中立導線、④ iOS約8割・WebView前提の段階的UI共同設計プロセスを確定し、`DECISIONS.md` および `docs/PHASE2_PLAN.md` へ永続化するため。
+
+### 追加 / 変更 (Added / Changed)
+
+- `DECISIONS.md`:
+  - `D-010` 新設: Phase 2 範囲内での第1層バックエンド完結（`firestore.rules` は `public/live_state` の `get` のみ公開・クライアント直接 `write` 全面禁止維持、Functions に `loginVenueStaff` ＋ `updateVenueLiveStatus` 先行実装）、`data/portal_config.json` による共通設定 SSOT 化、公式デジタルパンフレットとしての完全中立性厳守と CS部導線方針、およびクラウドデプロイ承認境界を明記。
+  - `P-003` 追加: スマホナビ構造および各画面の UI/UX ディテールを計画時点で独断固定せず、各 UI ステップ着手時にユーザーと協議・決定する方針を明記。
+- `docs/PHASE2_PLAN.md`:
+  - Step 2-1〜2-5 の実装計画、現行コードベース（`v0.1.13`）精査で特定した6つの技術対策（`campus_map_data.json` の非マップ画面チャンク混入防止分割、Leaflet × Static Export × React 19 StrictMode × `innerHTML` 禁止ルール適合、国土地理院タイル `maxNativeZoom: 18` 指定、`LiveStateProvider` 60秒スロットル共有、`<OrderEntrySlot />` 3段階キルスイッチ、`scrypt`＋単一トランザクション会場部分更新）、および3箇所の「UI共同設計ゲート」を策定。
+
+### 得られた知見 / 注意点 (Learned / Caveats)
+
+- **公式パンフレット化交渉（Phase 4-1）を見据えた「完全中立UI」の重要性**:
+  - 2026年に「CS部のフッター埋没（6人 / 1.5%）」があったからといって、メインナビやトップ宣伝バナーに特定部活名を前面配置すると、2026年当日に受付QR掲示が不許可となった「特定部活の優遇」問題を再発させ、最重要目標である生徒会公式パンフ一本化交渉の足かせになる。グローバル導線は100%中立な公式パンフに徹し、「1出展企画としての対等掲載」＋「ご案内ページ内の『生徒会×CS部 共同運営・技術紹介』カード」で誘導するのが最適解である。
+- **`master-data.ts` 分割による `360 MB/日` 無料枠保護**:
+  - 5,088行の `campus_map_data.json` を `projects.json` と同一ローダーで再エクスポートすると、クライアントバンドル最適化の境界次第で非マップ画面にポリゴン座標データが混入するリスクがあるため、Step 2-1 で `portal-master.ts` と `map-master.ts` へ物理分離する。
+
+---
+
 ## [0.1.13] レビュー監査修正（ESLint境界・キルスイッチ迂回12パターンの完全封鎖・`store_total` 残数誤設定遮断・StrictMode/GA4保護強化） - 2026-11-17
 
 ### メタ情報

@@ -1,7 +1,30 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
+import { Noto_Sans_JP, Plus_Jakarta_Sans } from 'next/font/google';
+import Script from 'next/script';
 import type { ReactNode } from 'react';
 import { AnalyticsTracker } from '@/components/AnalyticsTracker';
 import '@/styles/tokens.css';
+
+const notoSansJp = Noto_Sans_JP({
+  subsets: ['latin'],
+  weight: ['500', '700', '900'],
+  variable: '--font-noto-sans-jp',
+  display: 'swap',
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['500', '700', '800'],
+  variable: '--font-jakarta',
+  display: 'swap',
+});
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  colorScheme: 'light dark',
+};
 
 export const metadata: Metadata = {
   title: {
@@ -17,8 +40,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { readonly children: ReactNode }) {
   return (
-    <html lang="ja">
+    <html
+      lang="ja"
+      className={`${plusJakartaSans.variable} ${notoSansJp.variable}`}
+      suppressHydrationWarning
+    >
       <body>
+        <Script src="/theme-init.js" strategy="beforeInteractive" />
         <AnalyticsTracker />
         {children}
       </body>

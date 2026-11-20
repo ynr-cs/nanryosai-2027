@@ -1,99 +1,123 @@
-import Image from 'next/image';
+import { HomeCountdown } from '@/domains/portal/components/HomeCountdown';
+import { HomeLiveVenues } from '@/domains/portal/components/HomeLiveVenues';
+import { HomeOrderPromo } from '@/domains/portal/components/HomeOrderPromo';
+import { HomeProjectHighlights } from '@/domains/portal/components/HomeProjectHighlights';
+import { HomeStageGantt } from '@/domains/portal/components/HomeStageGantt';
+import { PortalIcon } from '@/domains/portal/components/PortalIcon';
 import { PortalLink } from '@/domains/portal/components/PortalLink';
-import { PortalSmokeStatus } from '@/domains/portal/components/PortalSmokeStatus';
-import {
-  allProjects,
-  allStageSlots,
-  campusMapData,
-  getTotalIndoorRoomCount,
-} from '@/domains/portal/lib/master-data';
-import type { ProjectCategory } from '@/types/domain';
+import { allProjects, allStageSlots } from '@/domains/portal/lib/portal-master';
 
-const CATEGORY_LABELS: Readonly<Record<ProjectCategory, { label: string; badgeClass: string }>> = {
-  cooking: { label: '調理・屋台', badgeClass: 'badge badge-cooking' },
-  shop: { label: '室内販売・カフェ', badgeClass: 'badge badge-shop' },
-  exhibit: { label: '展示・体験', badgeClass: 'badge badge-exhibit' },
-  stage: { label: 'ステージ発表', badgeClass: 'badge badge-stage' },
-};
+const ANNOUNCEMENTS = [
+  {
+    id: 'stage-tt',
+    date: '2027.09.08',
+    title: 'ステージタイムテーブルを公開しました',
+    href: '/stages',
+  },
+  {
+    id: 'mop-stores',
+    date: '2027.09.05',
+    title: 'モバイルオーダー対象の模擬店が決まりました',
+    href: '/projects?mop=1',
+  },
+  {
+    id: 'portal-open',
+    date: '2027.09.01',
+    title: '公式デジタルパンフレットを公開しました',
+    href: '/guide#news',
+  },
+] as const;
 
 export default function PortalHomePage() {
-  const indoorRoomCount = getTotalIndoorRoomCount();
-
   return (
     <>
-      <section className="card stack-md">
-        <div className="row-wrap">
-          <span className="badge badge-stage">Phase 1 土台稼働中</span>
-          <span className="meta-text">
-            二層物理分離アーキテクチャ（Webポータル層 / MOP・有人POS層 完全疎結合）
-          </span>
-        </div>
-        <h1>第25回 南陵祭2027 デジタル基盤</h1>
-        <p className="meta-text">
-          正規化キャンパスマップ（屋内 {indoorRoomCount} 室 ＋ 屋外・特別 {campusMapData.spots.length}{' '}
-          スポット / {campusMapData.buildings.length} 棟 / バスアクセス{' '}
-          {campusMapData.accessRoutes.length} 経路）・検証用企画 {allProjects.length} 件・ステージ枠{' '}
-          {allStageSlots.length} 件を静的0ms描画用に統合済みです。
-        </p>
+      <section className="hero" id="top">
+        <span className="hero-badge num">2027.9.10 – 11</span>
+        <h1 className="hero-title">
+          南陵祭
+          <br />
+          2027
+        </h1>
+        <p className="hero-slogan">スローガン決定後にここへ入ります</p>
       </section>
 
-      <PortalSmokeStatus />
+      <HomeCountdown />
 
-      <section className="stack-md" aria-labelledby="projects-heading">
-        <h2 id="projects-heading">検証用企画マスタ一覧（`prefetch=false` 帯域保護リンク）</h2>
-        <div className="grid-cards">
-          {allProjects.map((project) => {
-            const cat = CATEGORY_LABELS[project.category];
-            return (
-              <article key={project.id} className="card stack-md">
-                <div className="row-wrap">
-                  <span className={cat.badgeClass}>{cat.label}</span>
-                  <span className="meta-text">{project.placeLabel}</span>
+      <main className="portal-main">
+        <HomeLiveVenues slots={allStageSlots} />
+
+        <HomeProjectHighlights projects={allProjects} />
+
+        <HomeOrderPromo />
+
+        <HomeStageGantt slots={allStageSlots} />
+
+        <section aria-label="開催概要">
+          <div className="overview-card">
+            <div className="ov-grid">
+              <div className="ov-item">
+                <div className="ov-icon" aria-hidden="true">
+                  <PortalIcon name="calendar" size={22} />
                 </div>
-                {project.hasCoverImage ? (
-                  <Image
-                    src={`/images/projects/${project.id}_thumb.webp`}
-                    alt={`${project.name} のサムネイル`}
-                    width={400}
-                    height={300}
-                  />
-                ) : (
-                  <div className="code-pill" aria-label="画像未提出プレースホルダー">
-                    画像準備中（404リクエストゼロ描画）
-                  </div>
-                )}
                 <div>
-                  <h3>{project.name}</h3>
-                  <p className="meta-text">{project.groupName}</p>
+                  <p className="ov-label">開催日程・時間</p>
+                  <p className="ov-value">令和9年度 第25回 南陵祭</p>
+                  <p className="ov-sub">
+                    <strong>9月10日(金)</strong>：校内発表（一般来校不可）
+                  </p>
+                  <p className="ov-sub">
+                    <strong>9月11日(土)</strong>：一般公開 10:00〜15:00
+                  </p>
                 </div>
-                <p>{project.catchphrase}</p>
-                <PortalLink href={`/projects/${project.id}`} className="btn">
-                  企画詳細を見る
-                </PortalLink>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="card stack-md" aria-labelledby="stages-heading">
-        <h2 id="stages-heading">検証用ステージタイムテーブル抜粋</h2>
-        <div className="stack-md">
-          {allStageSlots.map((slot) => (
-            <div key={slot.id} className="row-wrap">
-              <span className="code-pill">
-                Day{slot.day} {slot.startTime}-{slot.endTime}
-              </span>
-              <span className="badge badge-stage">{slot.venueLabel}</span>
-              {slot.sessionType === 'after_festival' ? (
-                <span className="badge badge-danger">後夜祭・在校生限定</span>
-              ) : null}
-              <strong>{slot.title}</strong>
-              <span className="meta-text">({slot.groupName})</span>
+              </div>
+              <div className="ov-item">
+                <div className="ov-icon" aria-hidden="true">
+                  <PortalIcon name="geo-fill" size={22} />
+                </div>
+                <div>
+                  <p className="ov-label">会場</p>
+                  <p className="ov-value">神奈川県立 横浜南陵高等学校</p>
+                  <p className="ov-sub">横浜市港南区日野中央2-26-1</p>
+                  <PortalLink href="/guide#access" className="sec-link" style={{ marginTop: 6 }}>
+                    <PortalIcon name="cursor" size={14} /> アクセス方法を見る
+                  </PortalLink>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-      </section>
+            <div className="ov-divider" />
+            <div className="notes">
+              <h3 className="notes-title">
+                <PortalIcon name="alert-triangle" size={18} /> ご来場の皆様へ
+              </h3>
+              <ol>
+                <li>車でのご来場はご遠慮ください。公共交通機関をご利用ください。</li>
+                <li>入場は正門のみです。必ず正門で受付をしてください。</li>
+                <li>上履きは不要です（土足の一足制）。</li>
+                <li>校内は完全キャッシュレスです。模擬店で現金は使えません。</li>
+              </ol>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="h-upd">
+          <div className="sec-head">
+            <h2 className="sec-title" id="h-upd">
+              お知らせ
+            </h2>
+            <PortalLink href="/guide#news" className="sec-link">
+              もっと見る <PortalIcon name="chevron-right" size={15} />
+            </PortalLink>
+          </div>
+          <div className="upd-list">
+            {ANNOUNCEMENTS.map((item) => (
+              <PortalLink key={item.id} href={item.href} className="upd-item">
+                <span className="upd-date num">{item.date}</span>
+                <span className="upd-title">{item.title}</span>
+              </PortalLink>
+            ))}
+          </div>
+        </section>
+      </main>
     </>
   );
 }
