@@ -33,6 +33,45 @@ function syncViewportDensity(): void {
   }
 }
 
+type RouteTransitionKind = 'none' | 'tab-forward' | 'tab-backward' | 'drill-in' | 'drill-out';
+
+function getTabOrder(pathname: string): number | null {
+  if (pathname === '/') {
+    return 0;
+  }
+  if (pathname === '/projects') {
+    return 1;
+  }
+  if (pathname === '/order') {
+    return 2;
+  }
+  if (pathname === '/stages') {
+    return 3;
+  }
+  if (pathname === '/map') {
+    return 4;
+  }
+  return null;
+}
+
+function resolveRouteTransition(prevPath: string, nextPath: string): RouteTransitionKind {
+  if (prevPath === nextPath) {
+    return 'none';
+  }
+  const prevTab = getTabOrder(prevPath);
+  const nextTab = getTabOrder(nextPath);
+  if (prevTab !== null && nextTab !== null) {
+    return nextTab > prevTab ? 'tab-forward' : 'tab-backward';
+  }
+  if (prevPath.startsWith('/projects/') && nextPath === '/projects') {
+    return 'drill-out';
+  }
+  if (nextPath.startsWith('/projects/') || nextPath === '/guide') {
+    return 'drill-in';
+  }
+  return 'tab-backward';
+}
+
 function getActiveNavKey(pathname: string): 'home' | 'projects' | 'order' | 'stage' | 'map' {
   if (pathname.startsWith('/projects')) {
     return 'projects';
@@ -67,6 +106,16 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
   const { mode, setThemeMode } = useTheme();
 
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  const [routeAnim, setRouteAnim] = useState<{
+    readonly path: string;
+    readonly kind: RouteTransitionKind;
+  }>({ path: pathname, kind: 'none' });
+  if (routeAnim.path !== pathname) {
+    setRouteAnim({
+      path: pathname,
+      kind: resolveRouteTransition(routeAnim.path, pathname),
+    });
+  }
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const sheetRef = useRef<HTMLElement | null>(null);
@@ -223,9 +272,14 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
 
       <EmergencyBanner />
 
-      {children}
+      <div
+        key={pathname}
+        className="portal-route-stage"
+        data-transition={routeAnim.kind}
+      >
+        {children}
 
-      <footer className="app-footer">
+        <footer className="app-footer">
         <nav className="footer-sitemap" aria-label="サイトマップ">
           <div>
             <div className="fs-heading">イベント</div>
@@ -313,7 +367,8 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
           <br />
           デジタルパンフレット制作・運営：コンピュータ科学部
         </div>
-      </footer>
+        </footer>
+      </div>
 
       <nav className="bottom-nav" aria-label="メインナビゲーション">
         <PortalLink

@@ -16,6 +16,28 @@
 
 ---
 
+## [0.1.17] ページ遷移方向連動アニメーション（ヘッダ・下部ナビ固定＋コンテンツ＆フッタ切替） - 2026-11-20
+
+### メタ情報
+
+- **AIモデル**: Antigravity
+- **筆者**: AI & 山本洋昌 (Uokun)
+- **変更理由**: ページ遷移時の体感の滑らかさと現在地の空間的把握を向上させるため、ヘッダーおよび下部フローティングナビを固定したまま、ページ本体＋フッターに対して遷移方向に応じたネイティブアプリ風トランジションアニメーションを追加する。
+
+### 追加 / 変更 (Added / Changed)
+
+- **方向連動ルートトランジションステージ（`PortalShell.tsx` / `portal.css`）**:
+  - `src/domains/portal/components/PortalShell.tsx` に `getTabOrder` / `resolveRouteTransition` を追加し、メインコンテンツ（`{children}`）と `<footer className="app-footer">` を `<div key={pathname} className="portal-route-stage" data-transition={...}>` で括った。
+  - 下部タブ間の遷移はタブ順序に応じて左右スライド＋フェード（`tab-forward` / `tab-backward`: `220ms`）、`/projects/[id]` や `/guide` への遷移は下からの浮き上がり＋フェード（`drill-in`: `230ms`）、詳細から一覧への戻りは沈み込みフェード（`drill-out`: `200ms`）を適用。
+  - `src/styles/portal.css` ではデフォルト静的状態を保ちつつ `@media (prefers-reduced-motion: no-preference)` 内でのみ `transform: translate3d(...)` / `opacity` の GPU コンポジタアニメーションを発火させ、OSの「視差効果を減らす」設定を遵守した。
+
+### 得られた知見 / 注意点 (Learned / Caveats)
+
+- **レンダー中ステート調整による初回フレーム一致**:
+  - `useEffect` ではなく React のレンダー中ステート更新（`if (routeAnim.path !== pathname)`）で遷移種別を決定することで、初回ロード時は `data-transition="none"`（0ms LCP無遅延）を保ちながら、クライアント遷移時は1フレーム目から正しい方向アニメーションを発火できる。
+
+---
+
 ## [0.1.16] Phase 2 ベースUI改善（Webフォント刷新・スマホ横長LIVEバー・ハイライトカルーセル・遷移高速化・フル幅ロゴ） - 2026-11-20
 
 ### メタ情報

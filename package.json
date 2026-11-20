@@ -1,6 +1,6 @@
 {
   "name": "nanryosai-2027",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "private": true,
   "description": "第25回 南陵祭2027 公式Webポータル ＆ 完全分離型MOP/POS基盤",
   "scripts": {
