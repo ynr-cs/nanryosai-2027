@@ -7,8 +7,12 @@ const YEAR_CHARS = ['2', '7'] as const;
 const STEP_MS = 42;
 const DURATION_MS = (PREFIX_CHARS.length + YEAR_CHARS.length) * STEP_MS + 750;
 
+let cachedLogoWidth = 0;
+let cachedLogoSizeCss = '';
+
 /**
  * フッター大型ロゴ（ウィンドウ横幅いっぱいへ自動フィット＋クリックで1文字ずつウェーブアニメーション）
+ * - 計算済み `--logo-fit-size` を :root へキャッシュし、ルート遷移時のリフロー・カクつきを防止。
  */
 export function WaveLogo() {
   const [waving, setWaving] = useState<boolean>(false);
@@ -17,44 +21,55 @@ export function WaveLogo() {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const innerRef = useRef<HTMLSpanElement | null>(null);
 
-  const fitToWidth = useCallback(() => {
+  const fitToWidth = useCallback((forceMeasure = false) => {
     const wrap = wrapRef.current;
     const button = buttonRef.current;
     const inner = innerRef.current;
     if (!wrap || !button || !inner) {
       return;
     }
-    // Read-before-write（リフロー連鎖防止）
     const wrapWidth = wrap.clientWidth;
+    if (!forceMeasure && cachedLogoWidth === wrapWidth && cachedLogoSizeCss) {
+      document.documentElement.style.setProperty('--logo-fit-size', cachedLogoSizeCss);
+      return;
+    }
     const innerWidth = inner.getBoundingClientRect().width;
     const currentFontSize = Number.parseFloat(window.getComputedStyle(button).fontSize);
     if (wrapWidth <= 0 || innerWidth <= 0 || !Number.isFinite(currentFontSize)) {
       return;
     }
     const targetSize = (currentFontSize * wrapWidth * 0.992) / innerWidth;
-    button.style.setProperty('--logo-fit-size', `${targetSize.toFixed(2)}px`);
+    const nextCss = `${targetSize.toFixed(2)}px`;
+    cachedLogoWidth = wrapWidth;
+    cachedLogoSizeCss = nextCss;
+    document.documentElement.style.setProperty('--logo-fit-size', nextCss);
   }, []);
 
   useEffect(() => {
-    fitToWidth();
+    const rafId = window.requestAnimationFrame(() => {
+      fitToWidth(false);
+    });
     const wrap = wrapRef.current;
     if (!wrap) {
-      return;
+      return () => {
+        window.cancelAnimationFrame(rafId);
+      };
     }
     const ro = new ResizeObserver(() => {
-      fitToWidth();
+      fitToWidth(true);
     });
     ro.observe(wrap);
 
     let cancelled = false;
     void document.fonts?.ready.then(() => {
       if (!cancelled) {
-        fitToWidth();
+        fitToWidth(true);
       }
     });
 
     return () => {
       cancelled = true;
+      window.cancelAnimationFrame(rafId);
       ro.disconnect();
       if (timerRef.current !== null) {
         window.clearTimeout(timerRef.current);

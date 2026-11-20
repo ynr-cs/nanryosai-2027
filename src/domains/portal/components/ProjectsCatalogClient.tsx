@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { PortalIcon, type PortalIconName } from '@/domains/portal/components/PortalIcon';
 import { PortalLink } from '@/domains/portal/components/PortalLink';
 import { usePortalToast } from '@/domains/portal/components/PortalToastContext';
@@ -34,19 +34,21 @@ function getFallbackIcon(category: ProjectCategory): PortalIconName {
   }
 }
 
-function ProjectsCatalogInner({ projects }: { readonly projects: readonly ProjectMaster[] }) {
-  const searchParams = useSearchParams();
-  const initialFilter: CatalogFilter =
-    searchParams.get('fav') === '1'
-      ? 'fav'
-      : searchParams.get('mop') === '1'
-        ? 'mop'
-        : 'all';
-
+function ProjectsCatalogContent({
+  projects,
+  initialFilter,
+}: {
+  readonly projects: readonly ProjectMaster[];
+  readonly initialFilter: CatalogFilter;
+}) {
   const [filter, setFilter] = useState<CatalogFilter>(initialFilter);
   const [query, setQuery] = useState<string>('');
   const { isFavorite, toggleFavorite } = useFavorites();
   const { showToast } = usePortalToast();
+
+  useEffect(() => {
+    setFilter(initialFilter);
+  }, [initialFilter]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -81,7 +83,11 @@ function ProjectsCatalogInner({ projects }: { readonly projects: readonly Projec
   return (
     <div className="stack-md">
       <div>
-        <label htmlFor="project-search" className="meta-text" style={{ display: 'block', marginBottom: 6 }}>
+        <label
+          htmlFor="project-search"
+          className="meta-text"
+          style={{ display: 'block', marginBottom: 6 }}
+        >
           企画名・団体名・場所・キーワードで即時検索（外部通信ゼロ）
         </label>
         <input
@@ -119,7 +125,9 @@ function ProjectsCatalogInner({ projects }: { readonly projects: readonly Projec
 
       {filtered.length === 0 ? (
         <div className="card">
-          <p className="meta-text">条件に一致する企画がありません。絞り込みを変更してお試しください。</p>
+          <p className="meta-text">
+            条件に一致する企画がありません。絞り込みを変更してお試しください。
+          </p>
         </div>
       ) : (
         <div className="hl-list">
@@ -182,13 +190,26 @@ function ProjectsCatalogInner({ projects }: { readonly projects: readonly Projec
   );
 }
 
+function ProjectsCatalogWithQuery({ projects }: { readonly projects: readonly ProjectMaster[] }) {
+  const searchParams = useSearchParams();
+  const initialFilter: CatalogFilter =
+    searchParams.get('fav') === '1'
+      ? 'fav'
+      : searchParams.get('mop') === '1'
+        ? 'mop'
+        : 'all';
+
+  return <ProjectsCatalogContent projects={projects} initialFilter={initialFilter} />;
+}
+
 /**
  * Static Export 環境で useSearchParams() がページ全体の CSR 退行を起こさないよう <Suspense> 分離
+ * - fallback にも完全な一覧を描画することで、初回遷移時の「読み込み中...」ガタつきを防止する。
  */
 export function ProjectsCatalogClient({ projects }: { readonly projects: readonly ProjectMaster[] }) {
   return (
-    <Suspense fallback={<div className="card meta-text">企画一覧を読み込み中...</div>}>
-      <ProjectsCatalogInner projects={projects} />
+    <Suspense fallback={<ProjectsCatalogContent projects={projects} initialFilter="all" />}>
+      <ProjectsCatalogWithQuery projects={projects} />
     </Suspense>
   );
 }

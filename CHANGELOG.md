@@ -16,6 +16,30 @@
 
 ---
 
+## [0.1.22] 初回ページ遷移カクつき解消（Suspense一覧即時描画・ロゴリフロー抑止・即時先読み）＆ 上からフローティング遷移への変更 - 2026-11-20
+
+### メタ情報
+
+- **AIモデル**: Antigravity
+- **筆者**: AI & 山本洋昌 (Uokun)
+- **変更理由**: 初回ページ遷移時（特に `/projects` 等）に「読み込み中...」フォールバック差し替えやロゴ再計測リフローが横スライドアニメーションと重なってカクつく問題を解消し、より安定して滑らかな「上からフローティング（`translate3d(0, -10px, 0)` + `opacity`）」遷移へ統一するため。
+
+### 追加 / 変更 (Added / Changed) / 修正 (Fixed)
+
+- **ページ遷移モーションを「上からフローティング」へ変更（`PortalShell.tsx` / `portal.css`）**:
+  - 左右スライド（`tab-forward` / `tab-backward`）を廃止し、どのルート遷移でも一律に上からスッと現れる `portalRouteFloatIn`（`translate3d(0, -10px, 0) -> 0` + `opacity`、`210ms`、`will-change: transform, opacity`）へ統一。
+- **初回遷移カクつき解消（`ProjectsCatalogClient.tsx` / `WaveLogo.tsx` / `PortalShell.tsx`）**:
+  - `ProjectsCatalogClient.tsx` の `<Suspense fallback>` を「読み込み中...」テキストから完全な `ProjectsCatalogContent` へ置き換え、`/projects` 初回遷移時の高さジャンプ・チラつきをゼロ化。
+  - `WaveLogo.tsx` で算出済み `--logo-fit-size` を `:root` とモジュールキャッシュに保持し、ルート遷移でフッターが再マウントされても強制同期リフローを発生させないよう最適化。
+  - `PortalShell.tsx` の主要導線プリフェッチを `requestIdleCallback(timeout: 1500)` 待ちからマウント直後実行へ変更し、初タップ前のチャンク先読み率を向上。
+
+### 得られた知見 / 注意点 (Learned / Caveats)
+
+- **`<Suspense fallback>` とアニメーションの衝突**:
+  - Static Export 対策で `useSearchParams()` を `<Suspense>` 分離する際、フォールバックを「読み込み中...」の1行にすると、SPA 遷移直後にアニメーション中でフォールバック→実データへ差し替わりレイアウトジャンプを引き起こす。フォールバック側にもデフォルト状態の完全DOMを置くことで静的HTML・初回遷移双方の体感が劇的に滑らかになる。
+
+---
+
 ## [0.1.21] 開催カウントダウン状態遷移（24時間未満特別アニメーション・開催中／閉幕自動切替）＆ 一時確認クエリ - 2026-11-20
 
 ### メタ情報

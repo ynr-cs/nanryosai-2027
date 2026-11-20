@@ -34,44 +34,7 @@ function syncViewportDensity(): void {
   }
 }
 
-type RouteTransitionKind = 'none' | 'tab-forward' | 'tab-backward' | 'drill-in' | 'drill-out';
-
-function getTabOrder(pathname: string): number | null {
-  if (pathname === '/') {
-    return 0;
-  }
-  if (pathname === '/projects') {
-    return 1;
-  }
-  if (pathname === '/order') {
-    return 2;
-  }
-  if (pathname === '/stages') {
-    return 3;
-  }
-  if (pathname === '/map') {
-    return 4;
-  }
-  return null;
-}
-
-function resolveRouteTransition(prevPath: string, nextPath: string): RouteTransitionKind {
-  if (prevPath === nextPath) {
-    return 'none';
-  }
-  const prevTab = getTabOrder(prevPath);
-  const nextTab = getTabOrder(nextPath);
-  if (prevTab !== null && nextTab !== null) {
-    return nextTab > prevTab ? 'tab-forward' : 'tab-backward';
-  }
-  if (prevPath.startsWith('/projects/') && nextPath === '/projects') {
-    return 'drill-out';
-  }
-  if (nextPath.startsWith('/projects/') || nextPath === '/guide') {
-    return 'drill-in';
-  }
-  return 'tab-backward';
-}
+type RouteTransitionKind = 'none' | 'float-in';
 
 function getActiveNavKey(pathname: string): 'home' | 'projects' | 'order' | 'stage' | 'map' {
   if (pathname.startsWith('/projects')) {
@@ -114,7 +77,7 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
   if (routeAnim.path !== pathname) {
     setRouteAnim({
       path: pathname,
-      kind: resolveRouteTransition(routeAnim.path, pathname),
+      kind: 'float-in',
     });
   }
   const dialogRef = useRef<HTMLDialogElement | null>(null);
@@ -124,27 +87,11 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
 
   useEffect(() => {
     const coreRoutes = ['/', '/projects', '/order', '/stages', '/map', '/guide'];
-    const prefetchCoreRoutes = () => {
-      for (const route of coreRoutes) {
-        if (route !== pathname) {
-          router.prefetch(route);
-        }
+    for (const route of coreRoutes) {
+      if (route !== pathname) {
+        router.prefetch(route);
       }
-    };
-    const win = window as Window & {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-      cancelIdleCallback?: (id: number) => void;
-    };
-    if (typeof win.requestIdleCallback === 'function') {
-      const idleId = win.requestIdleCallback(prefetchCoreRoutes, { timeout: 1500 });
-      return () => {
-        win.cancelIdleCallback?.(idleId);
-      };
     }
-    const timerId = window.setTimeout(prefetchCoreRoutes, 600);
-    return () => {
-      window.clearTimeout(timerId);
-    };
   }, [pathname, router]);
 
   useEffect(() => {
