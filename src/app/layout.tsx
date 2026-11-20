@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { Noto_Sans_JP, Plus_Jakarta_Sans } from 'next/font/google';
-import Script from 'next/script';
 import type { ReactNode } from 'react';
 import { AnalyticsTracker } from '@/components/AnalyticsTracker';
+import { ThemeProvider } from '@/components/ThemeProvider';
 import '@/styles/tokens.css';
 
 const notoSansJp = Noto_Sans_JP({
@@ -45,10 +45,13 @@ export default function RootLayout({ children }: { readonly children: ReactNode 
       className={`${plusJakartaSans.variable} ${notoSansJp.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="/theme-init.js" />
+      </head>
       <body>
-        <Script src="/theme-init.js" strategy="beforeInteractive" />
         <AnalyticsTracker />
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

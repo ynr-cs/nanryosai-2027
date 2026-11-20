@@ -635,43 +635,6 @@
   }
 
   /* ---------- Highlight list & carousel (丸サムネ横長カード) ---------- */
-  .hl-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-  .hl-toolbar .filter-row {
-    flex: 1;
-    min-width: 0;
-    margin-bottom: 0;
-  }
-  .hl-nav-btns {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-  }
-  .hl-arrow-btn {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    border: 1px solid var(--border);
-    background: var(--card);
-    color: var(--text);
-    display: grid;
-    place-items: center;
-    cursor: pointer;
-    touch-action: manipulation;
-    transition:
-      border-color 0.18s,
-      background-color 0.18s;
-  }
-  .hl-arrow-btn:hover {
-    border-color: var(--primary);
-    background: var(--fill);
-    color: var(--primary);
-  }
   .hl-carousel-track {
     display: flex;
     gap: 12px;
@@ -1093,12 +1056,12 @@
     overflow-x: auto;
   }
   .gantt-canvas {
-    min-width: 640px;
+    min-width: 900px;
     position: relative;
   }
   .gantt-head {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(10, 1fr);
   }
   .gantt-head div {
     border-right: 1px solid var(--border);
@@ -1113,8 +1076,8 @@
     border-bottom: 1px solid var(--border);
     background-image: repeating-linear-gradient(
       90deg,
-      transparent 0 calc(100% / 7 - 1px),
-      var(--border) calc(100% / 7 - 1px) calc(100% / 7)
+      transparent 0 calc(100% / 10 - 1px),
+      var(--border) calc(100% / 10 - 1px) calc(100% / 10)
     );
     transition: opacity 0.18s;
   }
@@ -1164,9 +1127,24 @@
     bottom: 0;
     width: 2px;
     background: #ff3b30;
-    box-shadow: 0 0 8px #ff3b30;
+    box-shadow: 0 0 8px rgba(255, 59, 48, 0.85);
     z-index: 3;
     pointer-events: none;
+  }
+  .now-pill {
+    position: absolute;
+    top: 1px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 1px 5px;
+    border-radius: 9999px;
+    background: #ff3b30;
+    color: #fff;
+    font-size: 0.58rem;
+    font-weight: 900;
+    line-height: 1.25;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(255, 59, 48, 0.35);
   }
 
   /* ---------- Overview ---------- */

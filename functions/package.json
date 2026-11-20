@@ -1,6 +1,6 @@
 {
   "name": "nanryosai-2027-functions",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "private": true,
   "description": "南陵祭2027 Cloud Functions 2nd Gen (asia-northeast1 / nodejs22 / esbuild)",
   "main": "lib/index.js",

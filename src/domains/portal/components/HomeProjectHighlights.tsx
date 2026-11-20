@@ -8,16 +8,8 @@ import { usePortalToast } from '@/domains/portal/components/PortalToastContext';
 import { useFavorites } from '@/domains/portal/context/FavoritesProvider';
 import type { ProjectCategory, ProjectMaster } from '@/types/domain';
 
-type FilterCat = 'all' | 'cooking' | 'shop' | 'exhibit';
-
 const MAX_HIGHLIGHT_ITEMS = 6;
-
-const FILTER_TABS: ReadonlyArray<{ readonly id: FilterCat; readonly label: string }> = [
-  { id: 'all', label: 'すべて' },
-  { id: 'cooking', label: '調理' },
-  { id: 'shop', label: '販売' },
-  { id: 'exhibit', label: '展示' },
-];
+const AUTO_ADVANCE_MS = 3500;
 
 function getFallbackIcon(category: ProjectCategory): PortalIconName {
   switch (category) {
@@ -32,34 +24,53 @@ function getFallbackIcon(category: ProjectCategory): PortalIconName {
   }
 }
 
+function shuffleArray<T>(items: readonly T[]): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = arr[i]!;
+    arr[i] = arr[j]!;
+    arr[j] = tmp;
+  }
+  return arr;
+}
+
 /**
- * トップページ「企画・展示 ハイライト」横スクロール・スナップカルーセル（一部抜粋表示）
- * - 本番では20団体以上となるため全件表示せず最大6件を抜粋し、右端に次カードが覗くPeekレイアウトで一覧(/projects)へ誘導する。
+ * トップページ「企画・展示 ハイライト」ランダム抜粋＆自動スナップカルーセル
+ * - 本番20団体以上の全件表示を廃し、表示ごとに完全ランダムで最大6件を抜粋表示。
+ * - 3.5秒間隔で自動スナップ移動し、ユーザー操作（タッチ／ホバー／フォーカス）中は自動停止する。
+ * - 絞り込みや全団体閲覧は「すべて見る（/projects）」へ誘導する。
  */
 export function HomeProjectHighlights({
   projects,
 }: {
   readonly projects: readonly ProjectMaster[];
 }) {
-  const [cat, setCat] = useState<FilterCat>('all');
+  const highlightPool = useMemo(
+    () => projects.filter((p) => p.category !== 'stage'),
+    [projects],
+  );
+  const [visibleProjects, setVisibleProjects] = useState<readonly ProjectMaster[]>(() =>
+    highlightPool.slice(0, MAX_HIGHLIGHT_ITEMS),
+  );
   const [activeIndex, setActiveIndex] = useState<number>(0);
-  const [statusMessage, setStatusMessage] = useState<string>('');
   const { isFavorite, toggleFavorite } = useFavorites();
   const { showToast } = usePortalToast();
 
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const activeIndexRef = useRef<number>(0);
   const pendingTargetRef = useRef<number | null>(null);
-  const settledIndexRef = useRef<number>(0);
   const rafIdRef = useRef<number | null>(null);
   const scrollDebounceRef = useRef<number | null>(null);
-  const userInteractedRef = useRef<boolean>(false);
+  const isInteractingRef = useRef<boolean>(false);
+  const touchCooldownRef = useRef<number | null>(null);
 
-  const visibleProjects = useMemo(() => {
-    const highlightPool = projects.filter((p) => p.category !== 'stage');
-    const byCategory =
-      cat === 'all' ? highlightPool : highlightPool.filter((p) => p.category === cat);
-    return byCategory.slice(0, MAX_HIGHLIGHT_ITEMS);
-  }, [projects, cat]);
+  useEffect(() => {
+    setVisibleProjects(shuffleArray(highlightPool).slice(0, MAX_HIGHLIGHT_ITEMS));
+    setActiveIndex(0);
+    activeIndexRef.current = 0;
+    trackRef.current?.scrollTo({ left: 0, behavior: 'auto' });
+  }, [highlightPool]);
 
   const slideCount = visibleProjects.length;
 
@@ -76,8 +87,7 @@ export function HomeProjectHighlights({
     let bestIdx = 0;
     let bestDist = Number.POSITIVE_INFINITY;
     for (let i = 0; i < slides.length; i += 1) {
-      const slide = slides[i]!;
-      const dist = Math.abs(slide.offsetLeft - scrollLeft);
+      const dist = Math.abs(slides[i]!.offsetLeft - scrollLeft);
       if (dist < bestDist) {
         bestDist = dist;
         bestIdx = i;
@@ -97,8 +107,8 @@ export function HomeProjectHighlights({
       if (!slide) {
         return;
       }
-      userInteractedRef.current = true;
       pendingTargetRef.current = clamped;
+      activeIndexRef.current = clamped;
       setActiveIndex(clamped);
 
       const prefersReduced =
@@ -112,16 +122,6 @@ export function HomeProjectHighlights({
     [slideCount],
   );
 
-  const handleCategoryChange = (nextCat: FilterCat) => {
-    setCat(nextCat);
-    setActiveIndex(0);
-    setStatusMessage('');
-    settledIndexRef.current = 0;
-    pendingTargetRef.current = null;
-    userInteractedRef.current = false;
-    trackRef.current?.scrollTo({ left: 0, behavior: 'auto' });
-  };
-
   useEffect(() => {
     const track = trackRef.current;
     if (!track) {
@@ -131,24 +131,16 @@ export function HomeProjectHighlights({
     const handleSettle = () => {
       const settled = findNearestIndex();
       pendingTargetRef.current = null;
+      activeIndexRef.current = settled;
       setActiveIndex(settled);
-      if (userInteractedRef.current && settled !== settledIndexRef.current && slideCount > 0) {
-        settledIndexRef.current = settled;
-        const proj = visibleProjects[settled];
-        setStatusMessage(
-          proj
-            ? `${settled + 1} / ${slideCount} 件目: ${proj.name}`
-            : `${settled + 1} / ${slideCount} 件目`,
-        );
-      }
     };
 
     const handleScroll = () => {
-      userInteractedRef.current = true;
       if (pendingTargetRef.current === null && rafIdRef.current === null) {
         rafIdRef.current = window.requestAnimationFrame(() => {
           rafIdRef.current = null;
           const nearest = findNearestIndex();
+          activeIndexRef.current = nearest;
           setActiveIndex((prev) => (prev === nearest ? prev : nearest));
         });
       }
@@ -177,18 +169,65 @@ export function HomeProjectHighlights({
         window.clearTimeout(scrollDebounceRef.current);
       }
     };
-  }, [findNearestIndex, slideCount, visibleProjects]);
+  }, [findNearestIndex]);
 
-  const handleStep = (delta: -1 | 1) => {
-    const base = pendingTargetRef.current ?? activeIndex;
-    scrollToSlide(base + delta);
-  };
+  useEffect(() => {
+    if (slideCount <= 1) {
+      return;
+    }
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (isInteractingRef.current || document.visibilityState !== 'visible') {
+        return;
+      }
+      scrollToSlide(activeIndexRef.current + 1);
+    }, AUTO_ADVANCE_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+      if (touchCooldownRef.current !== null) {
+        window.clearTimeout(touchCooldownRef.current);
+      }
+    };
+  }, [scrollToSlide, slideCount]);
 
   return (
     <section
       aria-labelledby="h-hl"
       aria-roledescription="carousel"
       className="hl-carousel-section"
+      onMouseEnter={() => {
+        isInteractingRef.current = true;
+      }}
+      onMouseLeave={() => {
+        isInteractingRef.current = false;
+      }}
+      onTouchStart={() => {
+        isInteractingRef.current = true;
+        if (touchCooldownRef.current !== null) {
+          window.clearTimeout(touchCooldownRef.current);
+        }
+      }}
+      onTouchEnd={() => {
+        if (touchCooldownRef.current !== null) {
+          window.clearTimeout(touchCooldownRef.current);
+        }
+        touchCooldownRef.current = window.setTimeout(() => {
+          isInteractingRef.current = false;
+        }, 4000);
+      }}
+      onFocusCapture={() => {
+        isInteractingRef.current = true;
+      }}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          isInteractingRef.current = false;
+        }
+      }}
     >
       <div className="sec-head">
         <h2 className="sec-title" id="h-hl">
@@ -197,44 +236,6 @@ export function HomeProjectHighlights({
         <PortalLink href="/projects" className="sec-link">
           すべて見る <PortalIcon name="arrow-right" size={15} />
         </PortalLink>
-      </div>
-
-      <div className="hl-toolbar">
-        <div className="filter-row" role="tablist" aria-label="企画ジャンル絞り込み">
-          {FILTER_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={cat === tab.id}
-              className={cat === tab.id ? 'chip active' : 'chip'}
-              onClick={() => handleCategoryChange(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {slideCount > 1 ? (
-          <div className="hl-nav-btns">
-            <button
-              type="button"
-              className="hl-arrow-btn"
-              aria-label="前の企画へ"
-              onClick={() => handleStep(-1)}
-            >
-              <PortalIcon name="chevron-left" size={16} />
-            </button>
-            <button
-              type="button"
-              className="hl-arrow-btn"
-              aria-label="次の企画へ"
-              onClick={() => handleStep(1)}
-            >
-              <PortalIcon name="chevron-right" size={16} />
-            </button>
-          </div>
-        ) : null}
       </div>
 
       <div
@@ -319,10 +320,6 @@ export function HomeProjectHighlights({
           ))}
         </nav>
       ) : null}
-
-      <p className="visually-hidden" role="status" aria-live="polite">
-        {statusMessage}
-      </p>
     </section>
   );
 }

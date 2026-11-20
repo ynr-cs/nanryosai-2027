@@ -16,6 +16,34 @@
 
 ---
 
+## [0.1.19] ライトモード瞬間ダーク化根治・ランダム自動スナップハイライト・タイムテーブル 09:00〜18:00＆DAY自動判別＆現在時刻ライン位置オートスクロール - 2026-11-20
+
+### メタ情報
+
+- **AIモデル**: Antigravity
+- **筆者**: AI & 山本洋昌 (Uokun)
+- **変更理由**: ① ライトモード設定時のページ遷移・再読込における一瞬のダーク表示フラッシュを根治し、② 企画ハイライトを完全ランダム抽出＋自動スナップカルーセル（フィルタ/矢印ボタンなし）へ簡潔化し、③ ステージタイムテーブルを 09:00〜18:00（10列）化・DAY1/DAY2 自動判別・現在時刻赤ライン＋初期表示での赤ライン位置オートスクロールを実現するため。
+
+### 追加 / 変更 (Added / Changed) / 修正 (Fixed)
+
+- **ライトモード瞬間ダークフラッシュ根治（`layout.tsx` / `theme-init.js` / `ThemeProvider.tsx`）**:
+  - `src/app/layout.tsx` の `next/script`（`beforeInteractive` は App Router では `self.__next_s` 経由で非同期実行される）を `<head>` 内の同期 `<script src="/theme-init.js" />` へ変更し、初回ペイント前に `data-theme` と `root.style.colorScheme` を確定。
+  - `ThemeProvider` を `src/components/ThemeProvider.tsx` として `RootLayout` 直下へ昇格（`src/domains/portal/context/ThemeProvider.tsx` は互換再エクスポート）し、`(portal)` ↔ `(mop)` ↔ `(venue)` 遷移時もテーマ状態を維持して Next.js `<head>` 再調整による上書きを防止。
+- **企画・展示ハイライトの完全ランダム＆自動スナップ化（`HomeProjectHighlights.tsx` / `portal.css`）**:
+  - ジャンルチップ・左右矢印ボタン・停止ボタンを撤去し、「すべて見る（`/projects`）」導線へ一本化。
+  - 表示時に非ステージ企画を Fisher-Yates シャッフルして最大6件をランダム抜粋し、3.5秒間隔で1枚ずつ自動スナップ移動（タッチ・ホバー・フォーカス中および `prefers-reduced-motion: reduce` 時は自動停止）。
+- **ステージタイムテーブル 09:00〜18:00 ＆ DAY自動判別 ＆ 現在時刻ライン追従（`HomeStageGantt.tsx` / `portal.css`）**:
+  - 列構成を `09:00`〜`18:00`（10列・09:00〜19:00幅）へ拡張。
+  - JST 日付に基づき `2027-09-11` は `DAY 2`、それ以外（`2027-09-10` および事前期間）は `DAY 1` を自動判別（手動切替時は手動選択を維持）。
+  - JST 現在時刻の赤いライン（`.now-line` ＋ 時刻ラベル `.now-pill`）を表示し、初期マウント時に `.gantt-scroll` を赤いラインが中央に見える位置へ自動スクロール。
+
+### 得られた知見 / 注意点 (Learned / Caveats)
+
+- **Next.js App Router における `beforeInteractive` の実行タイミング**:
+  - Pages Router と異なり App Router では `<Script strategy="beforeInteractive" />` が `<body>` 内の `self.__next_s` へ出力されるため、OS ダーク設定下でライトモードを選択していると初回描画がダークになる場合がある。同期 `<script src="/theme-init.js" />` を `<head>` に配置することで描画前確定が可能。
+
+---
+
 ## [0.1.18] リアルタイム情報のレスポンシブ一本化（スマホ横長バー／PC3列）＆ インタラクティブ遷移連携 - 2026-11-20
 
 ### メタ情報

@@ -7,9 +7,11 @@
     var meta = document.querySelector('meta[name="color-scheme"]');
     if (saved === 'dark' || saved === 'light') {
       root.dataset.theme = saved;
+      root.style.colorScheme = saved;
       if (meta) meta.setAttribute('content', saved);
     } else {
       delete root.dataset.theme;
+      root.style.colorScheme = 'light dark';
       if (meta) meta.setAttribute('content', 'light dark');
     }
   } catch {

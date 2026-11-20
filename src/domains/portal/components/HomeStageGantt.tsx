@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PortalIcon } from '@/domains/portal/components/PortalIcon';
 import { PortalLink } from '@/domains/portal/components/PortalLink';
 import { usePortalToast } from '@/domains/portal/components/PortalToastContext';
@@ -12,7 +12,56 @@ const GANTT_LANES: ReadonlyArray<{ readonly id: StageVenueId; readonly label: st
   { id: 'student_4f_music_room', label: '音楽室' },
 ];
 
-const HOURS = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'] as const;
+const START_HOUR = 9;
+const TOTAL_HOURS = 10; // 09:00〜18:00台（09:00〜19:00）
+const HOURS = [
+  '09:00',
+  '10:00',
+  '11:00',
+  '12:00',
+  '13:00',
+  '14:00',
+  '15:00',
+  '16:00',
+  '17:00',
+  '18:00',
+] as const;
+
+const DAY1_JST_DATE = '2027-09-10';
+const DAY2_JST_DATE = '2027-09-11';
+
+function pad2(v: number): string {
+  return String(v).padStart(2, '0');
+}
+
+function getJstNowParts(now: Date = new Date()): {
+  readonly isoDate: string;
+  readonly decHour: number;
+  readonly label: string;
+} {
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const year = jst.getUTCFullYear();
+  const month = pad2(jst.getUTCMonth() + 1);
+  const date = pad2(jst.getUTCDate());
+  const hour = jst.getUTCHours();
+  const minute = jst.getUTCMinutes();
+  return {
+    isoDate: `${year}-${month}-${date}`,
+    decHour: hour + minute / 60,
+    label: `${pad2(hour)}:${pad2(minute)}`,
+  };
+}
+
+function detectFestivalDay(isoDate: string): 1 | 2 {
+  if (isoDate === DAY2_JST_DATE) {
+    return 2;
+  }
+  if (isoDate === DAY1_JST_DATE) {
+    return 1;
+  }
+  // 事前期間（開催前）は DAY 1 をデフォルト表示
+  return 1;
+}
 
 function hhmmToHours(hhmm: string): number {
   const [hStr, mStr] = hhmm.split(':');
@@ -21,6 +70,9 @@ function hhmmToHours(hhmm: string): number {
 
 /**
  * トップページ／ステージページ「ステージ タイムテーブル」Day1 / Day2 ガントチャート
+ * - 09:00〜18:00台（10列）表示
+ * - JST 日付に基づく DAY1 / DAY2 自動判別
+ * - 現在時刻の赤いライン表示＋初期表示時の現在時刻位置への自動スクロール
  */
 export function HomeStageGantt({
   slots,
@@ -31,22 +83,46 @@ export function HomeStageGantt({
   readonly highlightVenueId?: StageVenueId | 'all';
   readonly hideViewAllLink?: boolean;
 }) {
-  const [day, setDay] = useState<1 | 2>(2);
-  const [nowPct, setNowPct] = useState<number | null>(null);
+  const [day, setDay] = useState<1 | 2>(1);
+  const [nowState, setNowState] = useState<{
+    readonly pct: number;
+    readonly label: string;
+  } | null>(null);
   const { showToast } = usePortalToast();
 
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const userSelectedDayRef = useRef<boolean>(false);
+  const hasAutoScrolledRef = useRef<boolean>(false);
+
   useEffect(() => {
-    const updateNow = () => {
-      const now = new Date();
-      const decHour = now.getHours() + now.getMinutes() / 60;
-      if (decHour >= 10 && decHour <= 17) {
-        setNowPct(((decHour - 10) / 7) * 100);
+    const syncClockAndDay = () => {
+      const { isoDate, decHour, label } = getJstNowParts();
+      if (!userSelectedDayRef.current) {
+        setDay(detectFestivalDay(isoDate));
+      }
+      if (decHour >= START_HOUR && decHour <= START_HOUR + TOTAL_HOURS) {
+        const pct = ((decHour - START_HOUR) / TOTAL_HOURS) * 100;
+        setNowState({ pct, label });
+
+        const scroller = scrollerRef.current;
+        if (scroller && !hasAutoScrolledRef.current) {
+          hasAutoScrolledRef.current = true;
+          window.requestAnimationFrame(() => {
+            const targetX = (pct / 100) * scroller.scrollWidth - scroller.clientWidth / 2;
+            const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+            scroller.scrollTo({
+              left: Math.max(0, Math.min(maxScroll, targetX)),
+              behavior: 'auto',
+            });
+          });
+        }
       } else {
-        setNowPct(null);
+        setNowState(null);
       }
     };
-    updateNow();
-    const id = window.setInterval(updateNow, 60_000);
+
+    syncClockAndDay();
+    const id = window.setInterval(syncClockAndDay, 30_000);
     return () => {
       window.clearInterval(id);
     };
@@ -73,7 +149,10 @@ export function HomeStageGantt({
           role="tab"
           aria-selected={day === 1}
           className={day === 1 ? 'day-btn num active' : 'day-btn num'}
-          onClick={() => setDay(1)}
+          onClick={() => {
+            userSelectedDayRef.current = true;
+            setDay(1);
+          }}
         >
           DAY 1
         </button>
@@ -82,7 +161,10 @@ export function HomeStageGantt({
           role="tab"
           aria-selected={day === 2}
           className={day === 2 ? 'day-btn num active' : 'day-btn num'}
-          onClick={() => setDay(2)}
+          onClick={() => {
+            userSelectedDayRef.current = true;
+            setDay(2);
+          }}
         >
           DAY 2
         </button>
@@ -100,7 +182,7 @@ export function HomeStageGantt({
             </div>
           ))}
         </div>
-        <div className="gantt-scroll">
+        <div ref={scrollerRef} className="gantt-scroll">
           <div className="gantt-canvas">
             <div className="gantt-head num">
               {HOURS.map((hour) => (
@@ -116,17 +198,34 @@ export function HomeStageGantt({
                     : 'gantt-row'
                 }
               >
-                {daySlots
-                  .filter((slot) => slot.venueId === lane.id)
-                  .map((slot) => {
+                {(() => {
+                  const laneSlots = daySlots
+                    .filter((slot) => slot.venueId === lane.id)
+                    .sort((a, b) => hhmmToHours(a.startTime) - hhmmToHours(b.startTime));
+
+                  return laneSlots.map((slot, slotIdx) => {
                     const startH = hhmmToHours(slot.startTime);
                     const endH = hhmmToHours(slot.endTime);
-                    const leftPct = Math.max(0, ((startH - 10) / 7) * 100);
-                    const widthPct = Math.max(9.5, ((endH - startH) / 7) * 100);
+                    const leftPct = Math.max(0, ((startH - START_HOUR) / TOTAL_HOURS) * 100);
+                    const rawWidthPct = ((endH - startH) / TOTAL_HOURS) * 100;
+                    const nextSlot = laneSlots[slotIdx + 1];
+                    const maxUntilNextPct = nextSlot
+                      ? Math.max(
+                          rawWidthPct,
+                          ((hhmmToHours(nextSlot.startTime) - START_HOUR) / TOTAL_HOURS) * 100 -
+                            leftPct -
+                            0.3,
+                        )
+                      : 100 - leftPct;
+                    const widthPct = Math.min(
+                      100 - leftPct,
+                      maxUntilNextPct,
+                      Math.max(2.4, rawWidthPct),
+                    );
                     const cls = slot.sessionType === 'after_festival' ? 'bar after' : 'bar';
                     const posStyle = {
                       left: `${leftPct}%`,
-                      width: `${Math.min(100 - leftPct, widthPct)}%`,
+                      width: `${widthPct}%`,
                     };
 
                     if (slot.linkedProjectId) {
@@ -137,7 +236,7 @@ export function HomeStageGantt({
                           className={cls}
                           style={posStyle}
                         >
-                          <b>{slot.groupName.replace(/^【検証用】/, '')}</b>
+                          <b>{slot.groupName}</b>
                           <small>{slot.title}</small>
                         </PortalLink>
                       );
@@ -159,11 +258,18 @@ export function HomeStageGantt({
                         <small>{slot.title}</small>
                       </button>
                     );
-                  })}
+                  });
+                })()}
               </div>
             ))}
-            {nowPct !== null ? (
-              <div className="now-line" style={{ left: `${nowPct}%` }} aria-hidden="true" />
+            {nowState !== null ? (
+              <div
+                className="now-line"
+                style={{ left: `${nowState.pct}%` }}
+                aria-hidden="true"
+              >
+                <span className="now-pill num">{nowState.label}</span>
+              </div>
             ) : null}
           </div>
         </div>

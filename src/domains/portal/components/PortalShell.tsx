@@ -16,7 +16,7 @@ import { PortalToastProvider } from '@/domains/portal/components/PortalToastCont
 import { WaveLogo } from '@/domains/portal/components/WaveLogo';
 import { FavoritesProvider, useFavorites } from '@/domains/portal/context/FavoritesProvider';
 import { LiveStateProvider } from '@/domains/portal/context/LiveStateProvider';
-import { ThemeProvider, useTheme, type ThemeMode } from '@/domains/portal/context/ThemeProvider';
+import { useTheme, type ThemeMode } from '@/domains/portal/context/ThemeProvider';
 
 function syncViewportDensity(): void {
   const vv = window.visualViewport;
@@ -535,11 +535,9 @@ export function PortalShell({ children }: { readonly children: ReactNode }) {
   return (
     <LiveStateProvider>
       <FavoritesProvider>
-        <ThemeProvider>
-          <PortalToastProvider>
-            <PortalChrome>{children}</PortalChrome>
-          </PortalToastProvider>
-        </ThemeProvider>
+        <PortalToastProvider>
+          <PortalChrome>{children}</PortalChrome>
+        </PortalToastProvider>
       </FavoritesProvider>
     </LiveStateProvider>
   );
