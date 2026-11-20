@@ -81,9 +81,13 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
     });
   }
   const dialogRef = useRef<HTMLDialogElement | null>(null);
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
   const sheetRef = useRef<HTMLElement | null>(null);
-  const isOpeningRef = useRef<boolean>(false);
+  const swipeRef = useRef<{ startX: number; startY: number; dx: number; tracking: boolean }>({
+    startX: 0,
+    startY: 0,
+    dx: 0,
+    tracking: false,
+  });
 
   useEffect(() => {
     const coreRoutes = ['/', '/projects', '/order', '/stages', '/map', '/guide'];
@@ -106,108 +110,94 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
 
   const closeDrawerImmediate = useCallback(() => {
     const dialog = dialogRef.current;
-    if (dialog?.open) {
-      delete dialog.dataset.drawerState;
-      dialog.close();
+    const sheet = sheetRef.current;
+    if (sheet) {
+      sheet.style.transition = '';
+      sheet.style.transform = '';
+    }
+    if (dialog) {
+      dialog.removeAttribute('data-closing');
+      if (dialog.open) {
+        dialog.close();
+      }
     }
     setMenuOpen(false);
   }, []);
 
-  const closeDrawer = useCallback(() => {
+  const closeDrawer = useCallback(async () => {
     const dialog = dialogRef.current;
+    const sheet = sheetRef.current;
     if (!dialog || !dialog.open) {
       setMenuOpen(false);
+      return;
+    }
+    if (dialog.hasAttribute('data-closing')) {
       return;
     }
     const prefersReduced =
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) {
-      delete dialog.dataset.drawerState;
-      dialog.close();
-      setMenuOpen(false);
+    if (prefersReduced || !sheet) {
+      closeDrawerImmediate();
       return;
     }
-    isOpeningRef.current = false;
-    dialog.dataset.drawerState = 'closing';
-  }, []);
+
+    sheet.style.transition = '';
+    sheet.style.transform = '';
+    dialog.setAttribute('data-closing', 'true');
+    const animations = dialog.getAnimations({ subtree: true });
+    if (animations.length > 0) {
+      await Promise.race([
+        Promise.allSettled(animations.map((a) => a.finished)),
+        new Promise<void>((resolve) => {
+          window.setTimeout(resolve, 220);
+        }),
+      ]);
+    } else {
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 190);
+      });
+    }
+    if (!dialog.hasAttribute('data-closing')) {
+      return;
+    }
+    dialog.removeAttribute('data-closing');
+    if (dialog.open) {
+      dialog.close();
+    }
+    setMenuOpen(false);
+  }, [closeDrawerImmediate]);
 
   const openDrawer = useCallback(() => {
     const dialog = dialogRef.current;
-    const scroller = scrollerRef.current;
     const sheet = sheetRef.current;
-    if (!dialog || !scroller || !sheet) {
+    if (!dialog || !sheet) {
       return;
     }
-    isOpeningRef.current = true;
-    dialog.dataset.drawerState = 'open';
+    dialog.removeAttribute('data-closing');
+    sheet.style.transition = '';
+    sheet.style.transform = '';
     if (!dialog.open) {
       dialog.showModal();
     }
-    scroller.scrollTo({ left: sheet.offsetWidth, behavior: 'instant' as ScrollBehavior });
     setMenuOpen(true);
-    window.requestAnimationFrame(() => {
-      isOpeningRef.current = false;
-    });
   }, []);
 
   useEffect(() => {
     const dialog = dialogRef.current;
-    const scroller = scrollerRef.current;
-    const sheet = sheetRef.current;
-    if (!dialog || !scroller || !sheet) {
+    if (!dialog) {
       return;
     }
-
-    const visibleThreshold = Math.min(0.05, 1 / Math.max(window.innerWidth, 320));
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[entries.length - 1];
-        if (!entry || !dialog.open || dialog.dataset.drawerState === 'closing') {
-          return;
-        }
-        if (entry.intersectionRatio >= 0.08) {
-          isOpeningRef.current = false;
-        }
-        if (entry.intersectionRatio === 1) {
-          setMenuOpen(true);
-        } else if (!isOpeningRef.current && entry.intersectionRatio < visibleThreshold) {
-          delete dialog.dataset.drawerState;
-          dialog.close();
-          setMenuOpen(false);
-        }
-      },
-      { root: dialog, threshold: [visibleThreshold, 0.1, 1] },
-    );
-    observer.observe(sheet);
-
-    const supportsScrollTimeline =
-      typeof CSS !== 'undefined' &&
-      typeof CSS.supports === 'function' &&
-      CSS.supports('animation-timeline: scroll()');
-
-    const syncBackdrop = () => {
-      const width = sheet.offsetWidth || 1;
-      const ratio = Math.min(1, Math.max(0, scroller.scrollLeft / width));
-      dialog.style.setProperty('--drawer-backdrop', String(ratio));
-    };
-
-    if (!supportsScrollTimeline) {
-      scroller.addEventListener('scroll', syncBackdrop, { passive: true });
-    }
-
     const handleNativeClose = () => {
-      isOpeningRef.current = false;
-      delete dialog.dataset.drawerState;
+      dialog.removeAttribute('data-closing');
+      if (sheetRef.current) {
+        sheetRef.current.style.transition = '';
+        sheetRef.current.style.transform = '';
+      }
       setMenuOpen(false);
     };
     dialog.addEventListener('close', handleNativeClose);
-
     return () => {
-      observer.disconnect();
-      if (!supportsScrollTimeline) {
-        scroller.removeEventListener('scroll', syncBackdrop);
-      }
       dialog.removeEventListener('close', handleNativeClose);
     };
   }, []);
@@ -393,47 +383,81 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
         className="portal-drawer"
         aria-label="メニュー"
         onClick={(e) => {
-          if (sheetRef.current && !sheetRef.current.contains(e.target as Node)) {
-            closeDrawer();
+          if (e.target === dialogRef.current) {
+            void closeDrawer();
           }
         }}
         onCancel={(e) => {
           if (e.cancelable) {
             e.preventDefault();
-            closeDrawer();
+            void closeDrawer();
           }
         }}
       >
-        <div className="portal-drawer-scroller" ref={scrollerRef}>
-          <div className="portal-drawer-spacer" aria-hidden="true" />
-          <aside
-            className="portal-drawer-sheet"
-            ref={sheetRef}
-            aria-label="メニュー"
-            onAnimationEnd={(e) => {
-              const dialog = dialogRef.current;
-              if (
-                e.target === sheetRef.current &&
-                dialog?.dataset.drawerState === 'closing'
-              ) {
-                delete dialog.dataset.drawerState;
-                dialog.close();
-                setMenuOpen(false);
-              }
-            }}
-          >
-            <div className="menu-header">
-              <span>メニュー</span>
-              <button
-                type="button"
-                className="menu-close"
-                aria-label="メニューを閉じる"
-                autoFocus
-                onClick={closeDrawer}
-              >
-                <PortalIcon name="close" size={18} />
-              </button>
-            </div>
+        <aside
+          className="portal-drawer-sheet"
+          ref={sheetRef}
+          aria-label="メニュー"
+          onTouchStart={(e) => {
+            const touch = e.touches[0];
+            if (!touch) {
+              return;
+            }
+            swipeRef.current = {
+              startX: touch.clientX,
+              startY: touch.clientY,
+              dx: 0,
+              tracking: true,
+            };
+          }}
+          onTouchMove={(e) => {
+            const touch = e.touches[0];
+            const sheet = sheetRef.current;
+            if (!touch || !sheet || !swipeRef.current.tracking) {
+              return;
+            }
+            const dx = touch.clientX - swipeRef.current.startX;
+            const dy = touch.clientY - swipeRef.current.startY;
+            if (Math.abs(dy) > Math.abs(dx) && swipeRef.current.dx === 0) {
+              swipeRef.current.tracking = false;
+              return;
+            }
+            if (dx > 10) {
+              swipeRef.current.dx = dx;
+              sheet.style.transition = 'none';
+              sheet.style.transform = `translate3d(${dx}px, 0, 0)`;
+            }
+          }}
+          onTouchEnd={() => {
+            const sheet = sheetRef.current;
+            const dx = swipeRef.current.dx;
+            swipeRef.current.tracking = false;
+            swipeRef.current.dx = 0;
+            if (!sheet) {
+              return;
+            }
+            sheet.style.transition = '';
+            if (dx > 64) {
+              void closeDrawer();
+            } else {
+              sheet.style.transform = '';
+            }
+          }}
+        >
+          <div className="menu-header">
+            <span>メニュー</span>
+            <button
+              type="button"
+              className="menu-close"
+              aria-label="メニューを閉じる"
+              autoFocus
+              onClick={() => {
+                void closeDrawer();
+              }}
+            >
+              <PortalIcon name="close" size={18} />
+            </button>
+          </div>
             <ul className="menu-list">
               <li>
                 <PortalLink href="/guide#overview" onClick={closeDrawerImmediate}>
@@ -567,8 +591,7 @@ function PortalChrome({ children }: { readonly children: ReactNode }) {
                 <p className="menu-version num">v{appVersion}</p>
               </div>
             </div>
-          </aside>
-        </div>
+        </aside>
       </dialog>
     </div>
   );

@@ -19,7 +19,7 @@
     flex-direction: column;
   }
 
-  /* ---------- Route transition stage (ヘッダ・下部ナビ固定で上からフローティング表示) ---------- */
+  /* ---------- Route transition stage (ヘッダ・下部ナビ固定で上から流れるように表示) ---------- */
   .portal-route-stage {
     display: flex;
     flex-direction: column;
@@ -28,14 +28,13 @@
   }
   @media (prefers-reduced-motion: no-preference) {
     .portal-route-stage[data-transition='float-in'] {
-      will-change: transform, opacity;
-      animation: portalRouteFloatIn 210ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      animation: portalRouteFlowDown 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
     }
   }
-  @keyframes portalRouteFloatIn {
+  @keyframes portalRouteFlowDown {
     from {
-      opacity: 0;
-      transform: translate3d(0, -10px, 0);
+      opacity: 0.9;
+      transform: translate3d(0, -16px, 0);
     }
     to {
       opacity: 1;
@@ -1639,48 +1638,32 @@
     transform: translateX(-50%) scale(1.06);
   }
 
-  /* ---------- Right-side Navigation Drawer (<dialog> + scroll-snap: modern-web-guidance準拠) ---------- */
+  /* ---------- Right-side Navigation Drawer (<dialog> + @starting-style) ---------- */
   .portal-drawer {
     --drawer-width: min(310px, 84dvw, 100dvw - 24px);
-    --drawer-backdrop: 0;
     inset: 0;
-    width: auto;
-    height: auto;
+    width: 100%;
+    height: 100svh;
     max-width: none;
     max-height: none;
     margin: 0;
     padding: 0;
     background: transparent;
     border: 0;
-    overflow: visible;
+    overflow: hidden;
     color: var(--text);
   }
+  .portal-drawer[open] {
+    display: flex;
+    justify-content: flex-end;
+  }
   .portal-drawer::backdrop {
-    background: #000;
-    opacity: calc(var(--drawer-backdrop) * 0.48);
-    backdrop-filter: blur(3px);
-  }
-  .portal-drawer-scroller {
-    position: relative;
-    display: grid;
-    /* 左100%を透明な閉じ用スペーサー、右端(--drawer-width)を本体ドロワーにする */
-    grid-template-columns: 100% var(--drawer-width);
-    overflow-x: scroll;
-    overscroll-behavior: none;
-    scrollbar-width: none;
-    scroll-snap-type: x mandatory;
-  }
-  .portal-drawer-scroller::-webkit-scrollbar {
-    display: none;
-  }
-  .portal-drawer-spacer {
-    height: 100svh;
-    scroll-snap-align: start;
-    scroll-initial-target: nearest;
+    background-color: rgba(0, 0, 0, 0);
+    transition: background-color 180ms ease-out;
   }
   .portal-drawer-sheet {
+    width: var(--drawer-width);
     height: 100svh;
-    scroll-snap-align: end;
     background: var(--card);
     color: var(--text);
     box-shadow: -6px 0 26px rgba(0, 0, 0, 0.14);
@@ -1690,73 +1673,26 @@
     padding: 18px 18px calc(20px + env(safe-area-inset-bottom, 0px));
     overflow-y: auto;
     scrollbar-width: none;
+    transform: translate3d(100%, 0, 0);
   }
   .portal-drawer-sheet::-webkit-scrollbar {
     display: none;
   }
   @media (prefers-reduced-motion: no-preference) {
-    .portal-drawer[data-drawer-state='open'] .portal-drawer-sheet {
-      animation: drawerSheetIn 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
-    }
-    .portal-drawer[data-drawer-state='closing'] .portal-drawer-sheet {
-      animation: drawerSheetOut 130ms ease-in both;
-    }
-    .portal-drawer[data-drawer-state='open']::backdrop {
-      animation: drawerBackdropIn 160ms ease-out both;
-    }
-    .portal-drawer[data-drawer-state='closing']::backdrop {
-      animation: drawerBackdropOut 130ms ease-in both;
+    .portal-drawer-sheet {
+      transition: transform 190ms cubic-bezier(0.22, 1, 0.36, 1);
     }
   }
-  @keyframes drawerSheetIn {
-    from {
-      transform: translate3d(100%, 0, 0);
-    }
-    to {
-      transform: translate3d(0, 0, 0);
-    }
-  }
-  @keyframes drawerSheetOut {
-    from {
-      transform: translate3d(0, 0, 0);
-    }
-    to {
+  .portal-drawer[open]:where(:not([data-closing])) .portal-drawer-sheet {
+    transform: translate3d(0, 0, 0);
+    @starting-style {
       transform: translate3d(100%, 0, 0);
     }
   }
-  @keyframes drawerBackdropIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 0.48;
-    }
-  }
-  @keyframes drawerBackdropOut {
-    from {
-      opacity: 0.48;
-    }
-    to {
-      opacity: 0;
-    }
-  }
-
-  @supports (animation-timeline: scroll()) {
-    .portal-drawer {
-      timeline-scope: --portal-drawer-fade;
-      animation: fade-portal-drawer-backdrop linear both;
-      animation-timeline: --portal-drawer-fade;
-    }
-    .portal-drawer-scroller {
-      scroll-timeline: --portal-drawer-fade x;
-    }
-    @keyframes fade-portal-drawer-backdrop {
-      0% {
-        --drawer-backdrop: 0;
-      }
-      100% {
-        --drawer-backdrop: 1;
-      }
+  .portal-drawer[open]:where(:not([data-closing]))::backdrop {
+    background-color: rgba(0, 0, 0, 0.46);
+    @starting-style {
+      background-color: rgba(0, 0, 0, 0);
     }
   }
 

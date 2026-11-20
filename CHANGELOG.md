@@ -16,6 +16,25 @@
 
 ---
 
+## [0.1.23] ハンバーガーメニュー開閉アニメーション修正（`<dialog>` `@starting-style`）＆ 遷移時暗転解消・上からフロー遷移最適化 - 2026-11-20
+
+### メタ情報
+
+- **AIモデル**: Antigravity
+- **筆者**: AI & 山本洋昌 (Uokun)
+- **変更理由**: ハンバーガーメニュー展開時の `scroll-timeline` + `scroll-snap` 競合によるアニメーション不具合、ページ遷移時に `opacity: 0` 始点による一瞬の暗転が発生していた問題、および横スライド遷移が残っていないかの総点検と「上から流れるように出てくる」滑らかな遷移への調整を行うため。
+
+### 変更内容
+
+- **ハンバーガーメニュー展開・閉じアニメーションの刷新** (`src/domains/portal/components/PortalShell.tsx`, `src/styles/portal.css`):
+  - `animation-timeline: scroll()` と `.portal-drawer-scroller`（`scroll-snap-type: x mandatory` + `IntersectionObserver`）の複合による開閉不具合・バックドロップ競合を撤廃。
+  - ネイティブ `<dialog>` の `@starting-style` + `transition-behavior: allow-discrete` + `data-closing` + `dialog.getAnimations({ subtree: true })` によるトップレイヤーアニメーションへ移行し、右スワイプで閉じる操作もドロワー本体上のタッチハンドラで直接制御。
+- **ページ遷移時の一瞬の暗転解消と上から流れる遷移の最適化** (`src/styles/portal.css`):
+  - `.portal-route-stage` の `portalRouteFloatIn`（`opacity: 0` 始点 + `will-change`）を廃止し、`portalRouteFlowDown`（`opacity: 0.9 -> 1`, `translate3d(0, -16px, 0) -> translate3d(0, 0, 0)`, `220ms cubic-bezier(0.22, 1, 0.36, 1)`）へ変更。
+  - `src` 配下に横スライド遷移（`tab-forward` / `tab-backward` / `translateX` ルート遷移）が残存しないことも確認済み。
+
+---
+
 ## [0.1.22] 初回ページ遷移カクつき解消（Suspense一覧即時描画・ロゴリフロー抑止・即時先読み）＆ 上からフローティング遷移への変更 - 2026-11-20
 
 ### メタ情報
